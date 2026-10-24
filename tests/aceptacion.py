@@ -123,8 +123,10 @@ with tempfile.TemporaryDirectory(prefix='gozo-qa-') as folder:
         assert report['count']==3 and report['income']==5860
         assert sum(x['total'] for x in report['payments'])==5860
         assert report['ranking'][0]['quantity']==5
-        assert report['sales'][-1]['lines'][0]['unitPrice']==1000
-        assert report['sales'][-1]['lines'][0]['name']=='Helado QA'
+        historical=next(x for x in report['sales'] if x['id']==first['id'])
+        historical_line=next(x for x in historical['lines'] if x['productId']==p['id'])
+        assert historical_line['unitPrice']==1000
+        assert historical_line['name']=='Helado QA'
         history=call(f'/clientes/{c["id"]}/historial?desde=2000-01-01&hasta=2100-01-01')['report'];assert history['income']==3360 and history['count']==2
         assert call(f'/clientes/{c2["id"]}/historial')['report']['count']==0
         call('/reportes?desde=2100-01-01&hasta=2000-01-01',status=400)
