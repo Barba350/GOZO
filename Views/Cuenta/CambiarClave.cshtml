@@ -1,0 +1,8 @@
+@model GOZO.PasswordInput
+@{ Layout = "_AccountLayout"; }
+<section class="card auth-card"><h1>Cambiar contraseña</h1><p class="hint">Usa una frase larga de al menos 14 caracteres. Al guardar se cerrarán tus sesiones.</p>
+<form asp-controller="Cuenta" asp-action="CambiarClave" method="post"><div asp-validation-summary="All" class="form-error"></div>
+<label>Contraseña actual<input name="CurrentPassword" type="password" autocomplete="current-password" required maxlength="128"></label>
+<label>Nueva contraseña<input name="NewPassword" type="password" autocomplete="new-password" required minlength="14" maxlength="128"></label>
+<label>Confirmar contraseña<input name="ConfirmPassword" type="password" autocomplete="new-password" required minlength="14" maxlength="128"></label>
+<button class="primary wide" type="submit">Guardar y cerrar sesión</button></form></section>

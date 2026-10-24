@@ -1,0 +1,10 @@
+@model GOZO.LoginInput
+@{ Layout = "_AccountLayout"; }
+<section class="card auth-card"><small>BIENVENIDO A GOZO</small><h1>Tu negocio, contigo.</h1><p class="hint">Inicia sesión para continuar.</p>
+<form asp-controller="Cuenta" asp-action="Ingresar" method="post">
+<div asp-validation-summary="All" class="form-error"></div>
+<input type="hidden" asp-for="ReturnUrl">
+<label>Usuario<input asp-for="Username" autocomplete="username" required maxlength="40" autocapitalize="none" spellcheck="false"></label>
+<label>Contraseña<input name="Password" type="password" autocomplete="current-password" required maxlength="128"></label>
+<button type="submit" class="primary wide">Ingresar</button>
+</form><p class="hint">Si olvidaste la contraseña, consulta al dueño. No compartas tu cuenta.</p></section>

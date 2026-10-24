@@ -1,0 +1,45 @@
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
+@model GOZO.WorkspaceViewModel
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="csrf-token" content="@Antiforgery.GetAndStoreTokens(Context).RequestToken">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="apple-touch-icon" href="/images/gozo-logo.png">
+    <meta name="theme-color" content="#008e9b">
+    <title>@ViewData["Title"] · GOZO</title>
+    <link rel="icon" type="image/png" href="~/images/gozo-logo.png">
+    <link rel="stylesheet" href="~/style.css" asp-append-version="true">
+    <script src="~/app.js" asp-append-version="true" defer></script>
+    <script src="~/interactions.js" asp-append-version="true" defer></script>
+</head>
+<body data-page="@Model.Page" data-role="@(User.IsInRole("Dueno") ? "Dueno" : "Cajero")">
+    <div class="cursor-halo" aria-hidden="true"></div>
+    <aside>
+        <a class="brand" asp-controller="Ventas" asp-action="Index" aria-label="GOZO, inicio"><img src="~/images/gozo-logo.png" alt="Gozo · Heladería Cafetería"><span>HELADERÍA &amp; CAFETERÍA</span></a>
+        <div class="nav-label">TU ESPACIO DE GESTIÓN</div>
+        <button type="button" class="menu-toggle" aria-controls="main-nav" aria-expanded="false">☰ Menú</button>
+        <nav id="main-nav" aria-label="Navegación principal">
+            @foreach (var item in new[] { ("venta", "Ventas", "＋", "Nueva venta"), ("productos", "Productos", "▦", "Productos"), ("clientes", "Clientes", "♧", "Clientes"), ("promociones", "Promociones", "◇", "Promociones"), ("reportes", "Reportes", "▤", "Reportes"), ("historial", "Historial", "↶", "Historial de cliente") })
+            {
+                if (!User.IsInRole("Dueno") && item.Item1 != "venta" && item.Item1 != "clientes") { continue; }
+                <a asp-controller="@item.Item2" asp-action="Index" data-page="@item.Item1" class="@(Model.Page == item.Item1 ? "selected" : "")"><span class="nav-icon">@item.Item3</span>@item.Item4<span class="nav-arrow" aria-hidden="true">↗</span></a>
+            }
+        </nav>
+        <div class="session-links"><strong>@User.Identity?.Name</strong><span>@(User.IsInRole("Dueno") ? "Dueño" : "Cajero")</span>
+        @if (User.IsInRole("Dueno")) { <a href="/Usuarios">Usuarios y seguridad</a> }
+        <a href="/Cuenta/CambiarClave">Cambiar contraseña</a>
+        <form asp-controller="Cuenta" asp-action="Salir" method="post"><button type="submit">Cerrar sesión</button></form></div>
+        <div class="aside-bottom"><span class="status-dot"></span> CADA MOMENTO SABE MEJOR<br><strong>Bienvenido a Gozo.</strong><p>Helados · Hamburguesas · Bebidas</p></div>
+    </aside>
+    <main>
+        <header><div><small id="eyebrow">@Model.Eyebrow</small><h1 id="title">@Model.Title</h1></div><div class="header-meta"><span class="pill">● Tu negocio, conectado</span><span id="today"></span></div></header>
+        <div id="notice" role="status" aria-live="polite"></div>
+        <section id="content" aria-label="Contenido">@RenderBody()</section>
+        <footer><span>GOZO <span class="footer-divider">/</span> Pequeños momentos, grandes sabores.</span><span>Bolivianos (Bs)</span></footer>
+    </main>
+    <dialog id="modal"><div id="modal-content"></div></dialog>
+</body>
+</html>

@@ -1,0 +1,35 @@
+@model GOZO.WorkspaceViewModel
+@* Primera representación desde el servidor. app.js añade edición, carrito y filtros sin recargas. *@
+<div class="welcome-strip"><div><small>HELADERÍA &amp; CAFETERÍA</small><h2>El sabor de un buen día.</h2><p>Todo listo para crear nuevos momentos.</p></div><div class="welcome-symbol" aria-hidden="true"><svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 25h31v15a12 12 0 0 1-12 12h-7a12 12 0 0 1-12-12Z"/><path d="M44 28h4a8 8 0 0 1 0 16h-4M9 56h43M22 9c-5 5 5 7 0 12M33 7c-5 5 5 7 0 12"/></svg></div></div>
+@if (Model.Page == "productos" || Model.Page == "venta")
+{
+    <div class="card"><h2>Catálogo de productos</h2><div class="table-wrap"><table><thead><tr><th>Producto</th><th>Categoría</th><th>Precio</th></tr></thead><tbody>
+        @foreach (var product in Model.Products)
+        {
+            <tr><td>@product.Name</td><td>@Model.Categories.FirstOrDefault(c => c.Id == product.CategoryId)?.Name</td><td>Bs @((product.Price / 100m).ToString("0.00"))</td></tr>
+        }
+    </tbody></table></div></div>
+}
+else if (Model.Page == "clientes" || Model.Page == "historial")
+{
+    <div class="card"><h2>Clientes frecuentes</h2><div class="table-wrap"><table><thead><tr><th>Nombre</th><th>CI</th><th>Celular</th></tr></thead><tbody>
+        @foreach (var customer in Model.Customers)
+        {
+            <tr><td>@customer.Name</td><td>@customer.Ci</td><td>@customer.Contact</td></tr>
+        }
+    </tbody></table></div></div>
+}
+else if (Model.Page == "promociones")
+{
+    <div class="card"><h2>Promociones</h2>
+    @foreach (var promotion in Model.Promotions)
+    {
+        <p><strong>@promotion.Name</strong> · @promotion.Description</p>
+    }
+    </div>
+}
+else
+{
+    <div class="card"><h2>Reportes de ventas</h2><p>Selecciona un periodo para consultar los resultados del negocio.</p></div>
+}
+<noscript><p class="form-error">Activa JavaScript para registrar ventas, editar datos y generar reportes.</p></noscript>

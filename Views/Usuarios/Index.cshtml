@@ -1,0 +1,14 @@
+@model GOZO.AccountsViewModel
+@{ Layout = "_AccountLayout"; }
+<div class="card"><h1>Usuarios y seguridad</h1><p class="hint">Cada persona debe usar su cuenta. Los nuevos usuarios deben cambiar su contraseña al ingresar.</p>
+<form asp-controller="Usuarios" asp-action="Crear" method="post"><div class="row"><label>Usuario<input name="Username" required minlength="3" maxlength="40" pattern="[a-zA-Z0-9._-]{3,40}" autocomplete="off"></label><label>Contraseña temporal<input name="Password" type="password" autocomplete="new-password" required minlength="14" maxlength="128"></label><label>Permisos<select name="Role"><option value="Cajero">Cajero</option><option value="Dueno">Dueño</option></select></label></div><button class="primary" type="submit">Crear usuario</button></form>
+<div class="table-wrap"><table><thead><tr><th>Usuario</th><th>Rol</th><th>Estado</th><th></th></tr></thead><tbody>
+@foreach (var account in Model.Accounts) {
+    <tr><td>@account.Username</td><td>@(account.Role == "Dueno" ? "Dueño" : "Cajero")</td><td>@(account.Active ? "Activo" : "Desactivado")</td><td>
+    @if (account.Username != User.Identity?.Name) { <form asp-controller="Usuarios" asp-action="Estado" method="post"><input type="hidden" name="id" value="@account.Id"><button class="secondary tiny" type="submit">@(account.Active ? "Desactivar" : "Activar")</button></form> }
+    @if (account.Username != User.Identity?.Name) { <details><summary>Restablecer contraseña</summary><form asp-controller="Usuarios" asp-action="Restablecer" method="post"><input type="hidden" name="id" value="@account.Id"><label>Nueva contraseña temporal<input type="password" name="password" required minlength="14" maxlength="128" autocomplete="new-password"></label><button class="secondary tiny" type="submit">Restablecer y cerrar sesiones</button></form></details> }
+    </td></tr>
+}
+</tbody></table></div><h2>Actividad reciente</h2><p class="hint">Últimos 200 eventos; fechas en UTC. No se registran contraseñas ni el contenido de las ventas.</p><div class="table-wrap"><table><thead><tr><th>Fecha UTC</th><th>Usuario</th><th>Acción</th></tr></thead><tbody>
+@foreach (var item in Model.Events) { <tr><td>@item.Date.ToString("yyyy-MM-dd HH:mm")</td><td>@item.Actor</td><td>@item.Action</td></tr> }
+</tbody></table></div></div>

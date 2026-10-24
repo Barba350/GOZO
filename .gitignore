@@ -1,0 +1,27 @@
+# Compilación y configuración local
+bin/
+obj/
+.vs/
+.vscode/
+*.user
+*.suo
+# Datos de clientes, cuentas, auditoría, claves y copias de seguridad
+App_Data/
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+keys/
+backups/
+# Secretos: configurar únicamente en el hosting
+.env
+.env.*
+!.env.example
+appsettings.*.json
+!appsettings.Development.json
+secrets.json
+*.pfx
+*.pem
+*.key
+__pycache__/
+*.pyc

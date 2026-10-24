@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GOZO · Acceso</title><link rel="stylesheet" href="~/style.css" asp-append-version="true"><link rel="stylesheet" href="~/account.css" asp-append-version="true"><link rel="icon" type="image/png" href="~/images/gozo-logo.png"></head>
+<body class="account-page"><main class="account-shell"><a href="/Ventas" class="account-brand"><img src="~/images/gozo-logo.png" alt="GOZO Heladería Cafetería"></a>
+@if (User.Identity?.IsAuthenticated == true) {
+    <div class="account-nav"><a href="/Ventas">← Ir a ventas</a><a href="/Cuenta/CambiarClave">Cambiar contraseña</a><form asp-controller="Cuenta" asp-action="Salir" method="post"><button class="secondary tiny" type="submit">Cerrar sesión</button></form></div>
+}
+@if (TempData["Message"] is string message) { <p class="account-success" role="status">@message</p> }
+@if (TempData["Error"] is string error) { <p class="form-error" role="alert">@error</p> }
+@RenderBody()
+<footer>GOZO · Acceso del personal</footer></main></body></html>
