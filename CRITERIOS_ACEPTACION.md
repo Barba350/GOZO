@@ -2,7 +2,7 @@
 
 Fuente: `Historias_Usuario_SCRUM_GOZO_2.xlsx`, hoja principal. Se incluyen los **43 criterios** de las diez historias; la columna de prueba indica cómo revisarlos, no que ya hayan pasado una prueba integral.
 
-**Estado:** implementados en código; revisión estática realizada. Pendientes de compilación, ejecución de ASP.NET y pruebas manuales en una máquina con el SDK .NET 8. Ver `README.md` y `tests/aceptacion.py`.
+**Estado:** implementados en código. GitHub Actions compiló C#/Razor y ejecutó las pruebas HTTP de negocio y seguridad correctamente (ejecución 40059932938). La columna de verificación sigue siendo una propuesta de revisión manual de interfaz; no afirma que se hayan probado visualmente los 43 CA. Ver `README.md` y `tests/aceptacion.py`.
 
 | Historia / CA | Criterio del Excel | Pantalla | Verificación propuesta |
 | --- | --- | --- | --- |
@@ -70,3 +70,7 @@ El campo de contacto solicitado por los criterios originales se concreta como n�
 ## Ampliación: acceso por internet y permisos
 
 La revisión agrega inicio de sesión obligatorio, cuentas de dueño/cajero, CSRF, límites de solicitudes, bloqueo temporal y auditoría básica. Reportes, catálogo administrativo, promociones e historial de clientes requieren dueño; ventas y registro/búsqueda de clientes admiten cajeros. Las pruebas de integración ahora inician sesión y usan tokens CSRF. Su ejecución en .NET y la verificación visual móvil siguen pendientes. Ver SECURITY.md y PUBLICAR.md.
+
+## Verificación en GitHub
+
+Compilación y suite HTTP de negocio/seguridad: https://github.com/Barba350/GOZO/actions/runs/40059932938. Las pruebas visuales de móvil y la adaptación a PostgreSQL siguen pendientes.

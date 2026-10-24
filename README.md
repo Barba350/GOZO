@@ -78,7 +78,7 @@ No hay registro público, cuentas demo ni secretos predeterminados. No hay auten
 
 ## Verificación
 
-En este entorno no está instalado el SDK .NET ni Docker. No se pudo compilar C#, Razor, ejecutar ASP.NET ni construir la imagen. Se verifica sintaxis JS/Python, comportamiento del ticket con DOM simulado, exclusión de secretos/datos y estructura del paquete. La compilación y pruebas HTTP quedan preparadas para ejecutarse en tu equipo y en GitHub Actions; deben pasar antes de publicar.
+El entorno local de edición no dispone de .NET ni Docker. La verificación se ejecutó en GitHub Actions: compilación C#/Razor, scripts, ticket, integración HTTP del negocio y seguridad, auditoría de dependencias y exclusión de bases/secretos terminaron correctamente. Evidencia de la revisión de código: https://github.com/Barba350/GOZO/actions/runs/40059932938 (commit 54f1126). La imagen Docker, la revisión visual en móviles y un despliegue público real todavía no están verificados. No hay una auditoría independiente ni una versión PostgreSQL completada.
 
 ```sh
 dotnet build
