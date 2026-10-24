@@ -54,7 +54,7 @@ with tempfile.TemporaryDirectory(prefix='gozo-qa-') as folder:
         return web(opener,'/Cuenta/Ingresar',{'Username':username,'Password':password,'__RequestVerificationToken':token})
     def call(path,method='GET',data=None,status=200,raw=False,opener=None,csrf=None):
         body=json.dumps(data).encode() if data is not None else None
-        req=urllib.request.Request(base+path,data=body,method=method,headers={'Content-Type':'application/json','X-CSRF-TOKEN':owner_csrf if csrf is None else csrf} if body else {})
+        req=urllib.request.Request(base+path,data=body,method=method,headers={'X-CSRF-TOKEN':owner_csrf if csrf is None else csrf,**({'Content-Type':'application/json'} if body else {})})
         try:
             response=(opener or owner).open(req,timeout=30)
         except urllib.error.HTTPError as error:

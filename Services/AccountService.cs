@@ -35,13 +35,14 @@ public class AccountService(IAccountRepository repository, IPasswordHasher<Accou
         return a != null && a.Active && a.Stamp == principal?.FindFirstValue("stamp") && a.Role == principal.FindFirstValue(ClaimTypes.Role);
     }
     public async Task Create(CreateAccountInput input, string actor, string ip, bool bootstrap = false) {
-        if (!Regex.IsMatch(input.Username ?? "", @"^[a-zA-Z0-9._-]{3,40}$")) throw new RuleException("Usuario: 3 a 40 letras, números, punto, guion o guion bajo.");
+        var username = input.Username ?? "";
+        if (!Regex.IsMatch(username, @"^[a-zA-Z0-9._-]{3,40}$")) throw new RuleException("Usuario: 3 a 40 letras, números, punto, guion o guion bajo.");
         ValidatePassword(input.Password);
         if (input.Role is not ("Dueno" or "Cajero")) throw new RuleException("Rol inválido.");
-        if (await repository.Find(input.Username.ToUpperInvariant()) != null) throw new RuleException("Ese usuario ya existe.");
-        var a = new Account { Username = input.Username, Key = input.Username.ToUpperInvariant(), Role = input.Role, MustChangePassword = !bootstrap };
+        if (await repository.Find(username.ToUpperInvariant()) != null) throw new RuleException("Ese usuario ya existe.");
+        var a = new Account { Username = username, Key = username.ToUpperInvariant(), Role = input.Role, MustChangePassword = !bootstrap };
         a.PasswordHash = hasher.HashPassword(a, input.Password); repository.Add(a);
-        repository.Audit(actor, "Creación de usuario: " + input.Username, ip); await repository.Save();
+        repository.Audit(actor, "Creación de usuario: " + username, ip); await repository.Save();
     }
     public static void ValidatePassword(string password) {
         if (password.Length is < 14 or > 128 || password.Distinct().Count() < 5) throw new RuleException("Usa una contraseña de 14 a 128 caracteres, con al menos 5 caracteres diferentes. Puedes usar una frase larga.");

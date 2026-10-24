@@ -10,7 +10,7 @@ let products=[],categories=[],customers=[],promotions=[],page=document.body.data
 let from=localDay(),to=localDay(),generatedRange="";
 const titles={venta:['PUNTO DE VENTA','Un nuevo momento de gozo.'],productos:['CATÁLOGO','Todo lo que hace sonreír.'],clientes:['CLIENTES','Cada cliente, su historia.'],promociones:['PROMOCIONES','Más motivos para volver.'],reportes:['RESULTADOS','Tu negocio, en números.'],historial:['FIDELIZACIÓN','El gozo de volver.']};
 async function api(path,method='GET',data){
- const r=await fetch('/api'+path,{method,headers:data?{'Content-Type':'application/json','X-CSRF-TOKEN':csrf()}:{},body:data?JSON.stringify(data):undefined});
+ const r=await fetch('/api'+path,{method,headers:{'X-CSRF-TOKEN':csrf(),...(data?{'Content-Type':'application/json'}:{})},body:data?JSON.stringify(data):undefined});
  if(r.status===401){location.assign('/Cuenta/Ingresar');throw Error('La sesión venció. Inicia sesión de nuevo.');}
  if(!r.ok){let e;try{e=await r.json();}catch{}throw Error(e?.error||e?.title||'No se pudo completar la solicitud ('+r.status+').');}
  return r.status===204?null:r.json();
