@@ -89,3 +89,8 @@ python tests/aceptacion.py
 La integración crea una copia temporal y bases propias: no modifica tus ventas. Comprueba negocio y acceso anónimo, CSRF, roles, cambio obligatorio de clave, hash, bloqueo, revocación y cabeceras. Los secretos de prueba se generan al ejecutar y no se almacenan en el código. Las pruebas del navegador móvil y el flujo completo de producción siguen pendientes de ejecución real.
 
 Para defenderlo: «MVC separa la presentación, los datos y los controladores; Services contiene las reglas y Repository accede a SQLite. Las cuentas separan funciones de dueño y cajero. El servidor central permite trabajar desde computadora y celular con la misma información».
+
+
+## PostgreSQL para internet (octubre 2026)
+
+SQLite sigue disponible localmente. Se añadió PostgreSQL para ventas, cuentas y claves de sesión persistentes en el alojamiento gratuito. Ver PUBLICAR.md. No se importan automáticamente datos locales. La publicación requiere conectar Neon y Render; no se han creado recursos de pago. La integración PostgreSQL se verifica con PostgreSQL 16 desechable en CI.

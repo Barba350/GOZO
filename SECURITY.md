@@ -19,3 +19,8 @@ Referencias:
 - https://learn.microsoft.com/aspnet/core/security/anti-request-forgery?view=aspnetcore-8.0
 - https://learn.microsoft.com/aspnet/core/performance/rate-limit?view=aspnetcore-8.0
 - https://render.com/docs/disks
+
+
+## PostgreSQL para internet (octubre 2026)
+
+SQLite sigue disponible localmente. Se añadió PostgreSQL para ventas, cuentas y claves de sesión persistentes en el alojamiento gratuito. Ver PUBLICAR.md. No se importan automáticamente datos locales. La publicación requiere conectar Neon y Render; no se han creado recursos de pago. La integración PostgreSQL se verifica con PostgreSQL 16 desechable en CI.

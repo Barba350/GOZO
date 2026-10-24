@@ -12,12 +12,12 @@ if (!Path.IsPathFullyQualified(dataDir)) throw new InvalidOperationException("GO
 Directory.CreateDirectory(dataDir);
 var production = !builder.Environment.IsDevelopment();
 if (production) {
-    if (builder.Configuration["GOZO_PERSISTENT_SQLITE"] != "true") throw new InvalidOperationException("Esta versión usa SQLite. No la publiques en un disco temporal. El alojamiento gratuito requiere adaptar la versión de internet a una base externa; la versión local sigue funcionando sin este ajuste.");
+    if (!DatabaseSetup.UsesPostgres(builder.Configuration) && builder.Configuration["GOZO_PERSISTENT_SQLITE"] != "true") throw new InvalidOperationException("Esta versión usa SQLite. No la publiques en un disco temporal. El alojamiento gratuito requiere adaptar la versión de internet a una base externa; la versión local sigue funcionando sin este ajuste.");
     if (!Uri.TryCreate(builder.Configuration["GOZO_PUBLIC_ORIGIN"], UriKind.Absolute, out var origin) || origin.Scheme != "https" || origin.AbsolutePath != "/" || !string.IsNullOrEmpty(origin.Query) || !string.IsNullOrEmpty(origin.Fragment) || !string.IsNullOrEmpty(origin.UserInfo)) throw new InvalidOperationException("Configura GOZO_PUBLIC_ORIGIN con la URL pública HTTPS, sin rutas, usuario ni contraseña.");
     if (builder.Configuration["GOZO_TLS_TERMINATION"] != "Edge") throw new InvalidOperationException("El despliegue requiere un proxy HTTPS administrado. Configura GOZO_TLS_TERMINATION=Edge solo detrás de ese proxy, sin acceso público directo al puerto interno.");
 }
 builder.WebHost.ConfigureKestrel(o => { o.AddServerHeader = false; o.Limits.MaxRequestBodySize = 65536; });
-builder.Services.AddDbContext<GozoDb>(o => o.UseSqlite($"Data Source={Path.Combine(dataDir, "gozo.db")}"));
+builder.Services.AddDbContext<GozoDb>(o => DatabaseSetup.Configure(o, builder.Configuration, Path.Combine(dataDir, "gozo.db")));
 builder.AddGozoSecurity(dataDir);
 builder.Services.AddControllersWithViews(o => o.Filters.Add(new AutoValidateAntiforgeryTokenAttribute()));
 // Repositorios: acceso a datos. Todos comparten el DbContext de la solicitud.
@@ -45,8 +45,7 @@ app.UseAuthorization();
 app.UseMiddleware<AccountAccessMiddleware>();
 using (var scope = app.Services.CreateScope()) {
     var db = scope.ServiceProvider.GetRequiredService<GozoDb>();
-    db.Database.EnsureCreated();
-    scope.ServiceProvider.GetRequiredService<AccountsDb>().Database.EnsureCreated();
+    await DatabaseSetup.Initialize(db, scope.ServiceProvider.GetRequiredService<AccountsDb>());
     if (!db.Categories.Any()) {
         db.Categories.AddRange(new Category { Name = "Helados" }, new Category { Name = "Hamburguesas" }, new Category { Name = "Bebidas" });
         db.SaveChanges();

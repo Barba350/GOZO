@@ -142,7 +142,21 @@ with tempfile.TemporaryDirectory(prefix='gozo-qa-') as folder:
         users_html=web(owner,'/Usuarios/Crear',{'Username':'qacashier','Password':temp_password,'Role':'Cajero','__RequestVerificationToken':token})
         assert 'qacashier' in users_html
         import sqlite3
-        db=sqlite3.connect(project/'App_Data/accounts.db')
+        def account_db():
+            if os.environ.get('GOZO_DB_PROVIDER') == 'PostgreSQL':
+                import psycopg
+                class Adapter:
+                    def __init__(self): self.connection=psycopg.connect(os.environ['GOZO_TEST_PG_DSN'])
+                    def execute(self,query,args=()):
+                        # Solo las consultas estáticas de comprobación de esta prueba.
+                        import re
+                        query=re.sub(r'\b(Accounts|Events|Id|Username|PasswordHash|LockedUntil|Action)\b',r'"\1"',query)
+                        query=query.replace('"Accounts"','gozo_accounts."Accounts"').replace('"Events"','gozo_accounts."Events"')
+                        return self.connection.execute(query.replace('?','%s'),args)
+                    def close(self): self.connection.close()
+                return Adapter()
+            return sqlite3.connect(project/'App_Data/accounts.db')
+        db=account_db()
         cashier_id=db.execute('select Id from Accounts where Username=?',('qacashier',)).fetchone()[0]
         password_hash=db.execute('select PasswordHash from Accounts where Id=?',(cashier_id,)).fetchone()[0]
         assert password_hash!=temp_password and len(password_hash)>60
@@ -161,7 +175,7 @@ with tempfile.TemporaryDirectory(prefix='gozo-qa-') as folder:
         web(cashier,'/Cuenta/Salir',{},status=400)
         # Bloqueo persistente de un usuario activo después de cinco contraseñas erróneas.
         for _ in range(5):login(owner,'qacashier','incorrect-password')
-        db=sqlite3.connect(project/'App_Data/accounts.db')
+        db=account_db()
         assert db.execute('select LockedUntil from Accounts where Id=?',(cashier_id,)).fetchone()[0] is not None
         assert db.execute('select count(*) from Events where Action=?',('Acceso rechazado',)).fetchone()[0]>=5
         db.close()

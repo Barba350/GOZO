@@ -1,35 +1,50 @@
-# Publicación gratuita de GOZO — estado actual
+# GOZO por internet sin contratar hosting de pago
 
-Presupuesto solicitado: cero pago de hosting. No se ha creado ningún servicio de pago ni se debe usar la configuración de disco `starter` de la revisión anterior. El Blueprint de pago fue retirado de este repositorio.
+La aplicación sigue siendo C# ASP.NET Core MVC, Services y Repository.
+SQLite se conserva para uso local. La versión de internet usa PostgreSQL externo
+para conservar ventas, clientes, cuentas y claves de sesión aunque Render reinicie.
+Las dos instalaciones son independientes: no sincronizan ni importan automáticamente datos.
 
-## Lo que ya está preparado
+## Servicios
 
-- Código ASP.NET Core MVC, Services y Repository.
-- Inicio de sesión y roles dueño/cajero.
-- Protección CSRF, contraseñas con hash, bloqueo temporal, auditoría y sesiones revocables.
-- Interfaz móvil y ticket adaptable.
-- Dockerfile y GitHub Actions para compilación y pruebas.
-- Exclusión de bases, clientes y secretos de GitHub.
+1. Conectar GitHub, Neon y Render. Elegir exclusivamente planes Free.
+2. En Neon crear un proyecto y base vacíos para GOZO. No activar planes de pago.
+3. En Render crear el servicio desde este repositorio con `render.yaml`, Docker y plan Free.
+   No añadir disco ni base de datos de Render. La configuración no crea recursos de pago.
+4. Configurar los secretos en Render, nunca en GitHub ni en mensajes:
 
-## Decisión pendiente
+| Variable | Valor |
+| --- | --- |
+| GOZO_DB_PROVIDER | PostgreSQL |
+| GOZO_POSTGRES_CONNECTION | Host=HOST_NEON;Database=neondb;Username=USUARIO;Password=CONTRASEÑA;SSL Mode=VerifyFull |
+| GOZO_PUBLIC_ORIGIN | URL HTTPS exacta del servicio, sin rutas |
+| GOZO_TLS_TERMINATION | Edge |
+| GOZO_ADMIN_USERNAME | Nombre del dueño |
+| GOZO_ADMIN_PASSWORD | Clave única de al menos 14 caracteres |
 
-El proyecto actual usa SQLite local. Render Free no conserva las escrituras en su sistema de archivos al reiniciar ni permite disco persistente. Publicar allí esta versión tal como está podría perder ventas, cuentas y claves de sesión; por ello el inicio de producción se bloquea si no se declara un disco SQLite persistente real mediante `GOZO_PERSISTENT_SQLITE=true`. No actives ese indicador en un servicio gratuito sin almacenamiento permanente.
+Usar los campos de conexión de Neon en formato Npgsql, no pegar una URL
+`postgresql://` en la variable. `VerifyFull` verifica TLS y el nombre del servidor.
+El permiso de prueba sin TLS solo se acepta en Development; jamás activarlo en Render.
+El puerto interno es 8080. `/salud` confirma arranque; comprobar además acceso,
+registro de una venta de prueba, reinicio y conservación de datos y sesión.
 
-La propuesta sin pago es usar Render Free para la aplicación y Neon Free (PostgreSQL) para los datos, manteniendo SQLite para el desarrollo local. Ese cambio de proveedor todavía requiere confirmación del usuario y adaptación del código. No basta con cambiar una cadena de conexión: hay que adaptar inicialización, cuentas y persistencia de las claves que protegen las cookies, además de probar el flujo completo. No hay una versión PostgreSQL terminada en este commit.
+5. Tras crear el dueño, quitar GOZO_ADMIN_PASSWORD del entorno y volver a desplegar.
+   La cuenta existente permanece. Crear cajeros desde Usuarios y usar claves únicas.
+6. Abrir la URL HTTPS desde PC o móvil. Guardarla en la pantalla de inicio si se desea.
 
-## Próximos pasos después de confirmar PostgreSQL
+## Límites y datos existentes
 
-1. Habilitar Render y Neon en la conversación.
-2. Mantener los planes Free. No activar mejoras de pago.
-3. Adaptar y probar el proyecto con ambos proveedores.
-4. Publicar solo después de que GitHub Actions pase.
-5. Configurar la contraseña inicial del dueño como secreto del hosting y retirarla tras crear la cuenta.
-6. Verificar el enlace HTTPS desde computadora y celular.
+Render Free puede suspenderse por inactividad: la primera carga puede tardar.
+Neon Free tiene cuotas de almacenamiento y cómputo. No contratar ampliaciones
+sin autorización; revisar los límites vigentes en los paneles oficiales.
+No se promete disponibilidad continua ni sustitución de copias de seguridad.
 
-Render Free se suspende tras 15 minutos sin visitas y puede tardar alrededor de un minuto en despertar. Neon Free también tiene límites de almacenamiento y cómputo. Esta opción sirve para demostración y uso ligero; no ofrece la disponibilidad de un servicio de producción de pago.
+La inicialización crea tablas en una base vacía, con cuentas y claves en el esquema
+`gozo_accounts`. No altera ni importa las bases SQLite existentes. Futuras modificaciones
+de esquema necesitan migraciones versionadas antes de desplegarse.
+Las claves de protección persisten en PostgreSQL; proteger el acceso y backups de esa
+base, porque también contiene credenciales cifradas mediante hash y claves de sesión.
+Para llevar ventas locales a internet, hacer primero una copia y una importación
+validada explícita. No subir archivos `.db`, claves ni secretos al repositorio.
 
-Referencias verificadas:
-- https://render.com/docs/free
-- https://neon.com/docs/introduction/plans
-
-La versión local continúa funcionando: `dotnet run -- --crear-dueno` y luego `dotnet run`. Conserva tu carpeta App_Data local. Nunca envíes contraseñas ni bases de clientes al repositorio.
+Documentación: https://render.com/docs/free y https://neon.com/pricing.

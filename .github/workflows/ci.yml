@@ -9,6 +9,17 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: gozo_test
+          POSTGRES_PASSWORD: local_ci_only
+          POSTGRES_DB: gozo_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U gozo_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -25,6 +36,14 @@ jobs:
       - run: node --check wwwroot/app.js && node --check wwwroot/interactions.js
       - run: node tests/ticket-ui.test.cjs
       - run: python tests/aceptacion.py
+      - run: pip install "psycopg[binary]>=3.2,<4"
+      - name: PostgreSQL integration (disposable database)
+        run: python tests/aceptacion.py
+        env:
+          GOZO_DB_PROVIDER: PostgreSQL
+          GOZO_POSTGRES_CONNECTION: Host=localhost;Database=gozo_test;Username=gozo_test;Password=local_ci_only;SSL Mode=Disable
+          GOZO_ALLOW_TEST_DATABASE: 'true'
+          GOZO_TEST_PG_DSN: postgresql://gozo_test:local_ci_only@localhost/gozo_test
       - run: python tests/dependency-audit.py
       - name: Database and secret exclusions
         run: python tests/repository-safety.py

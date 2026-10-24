@@ -12,12 +12,14 @@ public static class SecuritySetup
 {
     public static void AddGozoSecurity(this WebApplicationBuilder builder, string dataDir) {
         var dev = builder.Environment.IsDevelopment();
-        builder.Services.AddDbContext<AccountsDb>(o => o.UseSqlite( $"Data Source={Path.Combine(dataDir, "accounts.db")}"));
+        builder.Services.AddDbContext<AccountsDb>(o => DatabaseSetup.Configure(o, builder.Configuration, Path.Combine(dataDir, "accounts.db")));
         builder.Services.AddScoped<IAccountRepository, AccountRepository>();
         builder.Services.AddScoped<AccountService>();
         builder.Services.AddScoped<IPasswordHasher<Account>, PasswordHasher<Account>>();
         builder.Services.Configure<PasswordHasherOptions>(o => o.IterationCount = 210000);
-        builder.Services.AddDataProtection().SetApplicationName("GOZO").PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(dataDir, "keys")));
+        var protection = builder.Services.AddDataProtection().SetApplicationName("GOZO");
+        if (DatabaseSetup.UsesPostgres(builder.Configuration)) protection.PersistKeysToDbContext<AccountsDb>();
+        else protection.PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(dataDir, "keys")));
         builder.Services.AddAntiforgery(o => {
             o.HeaderName = "X-CSRF-TOKEN";
             o.Cookie.Name = dev ? "Gozo.Csrf" : "__Host-Gozo.Csrf";

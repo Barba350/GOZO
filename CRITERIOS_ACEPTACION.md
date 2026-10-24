@@ -74,3 +74,8 @@ La revisión agrega inicio de sesión obligatorio, cuentas de dueño/cajero, CSR
 ## Verificación en GitHub
 
 Compilación y suite HTTP de negocio/seguridad: https://github.com/Barba350/GOZO/actions/runs/40059932938. Las pruebas visuales de móvil y la adaptación a PostgreSQL siguen pendientes.
+
+
+## PostgreSQL para internet (octubre 2026)
+
+SQLite sigue disponible localmente. Se añadió PostgreSQL para ventas, cuentas y claves de sesión persistentes en el alojamiento gratuito. Ver PUBLICAR.md. No se importan automáticamente datos locales. La publicación requiere conectar Neon y Render; no se han creado recursos de pago. La integración PostgreSQL se verifica con PostgreSQL 16 desechable en CI.

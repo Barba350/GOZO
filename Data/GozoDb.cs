@@ -10,6 +10,12 @@ public class GozoDb(DbContextOptions<GozoDb> options) : DbContext(options)
     public DbSet<Promotion> Promotions => Set<Promotion>();
     protected override void OnModelCreating(ModelBuilder b)
     {
+        // Fechas comerciales en hora de Bolivia, sin zona; auditoría/cuentas usan UTC.
+        if (Database.IsNpgsql()) {
+            b.Entity<Sale>().Property(x => x.Date).HasColumnType("timestamp without time zone");
+            b.Entity<Promotion>().Property(x => x.Start).HasColumnType("timestamp without time zone");
+            b.Entity<Promotion>().Property(x => x.End).HasColumnType("timestamp without time zone");
+        }
         b.Entity<Product>().HasIndex(x => new { x.Key, x.CategoryId }).IsUnique();
         b.Entity<Product>().HasOne<Category>().WithMany().HasForeignKey(x => x.CategoryId).OnDelete(DeleteBehavior.Restrict);
         b.Entity<Customer>().HasIndex(x => x.Ci).IsUnique();

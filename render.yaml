@@ -1,0 +1,21 @@
+# Solo plan gratuito. Base externa Neon; sin discos ni bases de pago en Render.
+services:
+  - type: web
+    name: gozo
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /salud
+    envVars:
+      - key: GOZO_DB_PROVIDER
+        value: PostgreSQL
+      - key: GOZO_POSTGRES_CONNECTION
+        sync: false
+      - key: GOZO_PUBLIC_ORIGIN
+        sync: false
+      - key: GOZO_TLS_TERMINATION
+        value: Edge
+      - key: GOZO_ADMIN_USERNAME
+        sync: false
+      - key: GOZO_ADMIN_PASSWORD
+        sync: false
