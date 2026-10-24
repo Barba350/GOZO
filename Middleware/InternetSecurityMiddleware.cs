@@ -12,6 +12,9 @@ public class InternetSecurityMiddleware(RequestDelegate next, IWebHostEnvironmen
         if (!env.IsDevelopment() && context.Request.Path != "/salud") {
             var origin = new Uri(configuration["GOZO_PUBLIC_ORIGIN"]!);
             if (!string.Equals(context.Request.Host.Value, origin.Authority, StringComparison.OrdinalIgnoreCase)) { r.StatusCode = 400; await r.WriteAsync("Host no permitido."); return; }
+            // El puerto interno solo es accesible a través del proxy HTTPS administrado.
+            // Usa el contrato Edge validado al arrancar, sin confiar en cabeceras del cliente.
+            if (configuration["GOZO_TLS_TERMINATION"] == "Edge") context.Request.Scheme = "https";
             r.Headers["Strict-Transport-Security"] = "max-age=31536000";
         }
         await next(context);

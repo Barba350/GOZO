@@ -202,7 +202,23 @@ with tempfile.TemporaryDirectory(prefix='gozo-qa-') as folder:
             log.seek(0);raise AssertionError('No reinició: '+log.read())
         assert call('/reportes?desde=2000-01-01&hasta=2100-01-01')['income']==5860
         assert len(call('/clientes?buscar=Ana'))==2
-        print('OK: reinicio conserva datos y sesión; autenticación, CSRF, roles, cambio de clave, revocación, cabeceras; catálogo, CI único y homónimos, venta, pagos, históricos, promociones, reportes, PDF, XLSX y baja lógica.')
+        if os.environ.get('GOZO_DB_PROVIDER', 'SQLite') == 'SQLite':
+            # Regresión: formulario CSRF con cookies Secure detrás de terminación TLS.
+            process.terminate();process.wait(timeout=15)
+            edge_env=dict(test_env,ASPNETCORE_ENVIRONMENT='Production',DOTNET_ENVIRONMENT='Production',GOZO_PERSISTENT_SQLITE='true',GOZO_PUBLIC_ORIGIN=f'https://127.0.0.1:{port}',GOZO_TLS_TERMINATION='Edge')
+            process=subprocess.Popen(['dotnet','run','--project',str(project/'GOZO.csproj'),'--no-launch-profile','--','--urls',f'http://127.0.0.1:{port}'],cwd=project,stdout=log,stderr=subprocess.STDOUT,env=edge_env)
+            edge_ready=False
+            for _ in range(120):
+                if process.poll() is not None:break
+                try:urllib.request.urlopen(root+'/salud',timeout=2).read();edge_ready=True;break
+                except OSError:time.sleep(1)
+            if not edge_ready:
+                log.seek(0);raise AssertionError('No inició Edge: '+log.read())
+            response=urllib.request.urlopen(root+'/Cuenta/Ingresar',timeout=30)
+            assert response.code==200 and Tokens(response.read().decode()).token
+            cookie=response.headers.get('Set-Cookie','').lower()
+            assert '__host-gozo.csrf=' in cookie and 'secure' in cookie and 'samesite=strict' in cookie
+        print('OK: formulario HTTPS Edge, reinicio conserva datos y sesión; autenticación, CSRF, roles, cambio de clave, revocación, cabeceras; catálogo, CI único y homónimos, venta, pagos, históricos, promociones, reportes, PDF, XLSX y baja lógica.')
     finally:
         process.terminate()
         try:process.wait(timeout=15)
