@@ -188,7 +188,19 @@ with tempfile.TemporaryDirectory(prefix='gozo-qa-') as folder:
         assert response.headers.get('X-Frame-Options')=='DENY'
         assert "script-src 'self'" in response.headers.get('Content-Security-Policy','')
         assert 'no-store' in response.headers.get('Cache-Control','')
-        print('OK: autenticación, CSRF, roles, cambio de clave, revocación, cabeceras; catálogo, CI único y homónimos, venta, pagos, históricos, promociones, reportes, PDF, XLSX y baja lógica.')
+        # Reiniciar el proceso conserva datos y permite reutilizar la misma cookie.
+        process.terminate();process.wait(timeout=15)
+        process=subprocess.Popen(['dotnet','run','--project',str(project/'GOZO.csproj'),'--no-launch-profile','--','--urls',f'http://127.0.0.1:{port}'],cwd=project,stdout=log,stderr=subprocess.STDOUT,env=test_env)
+        restarted=False
+        for _ in range(120):
+            if process.poll() is not None:break
+            try:urllib.request.urlopen(root+'/salud',timeout=2).read();restarted=True;break
+            except OSError:time.sleep(1)
+        if not restarted:
+            log.seek(0);raise AssertionError('No reinició: '+log.read())
+        assert call('/reportes?desde=2000-01-01&hasta=2100-01-01')['income']==5860
+        assert len(call('/clientes?buscar=Ana'))==2
+        print('OK: reinicio conserva datos y sesión; autenticación, CSRF, roles, cambio de clave, revocación, cabeceras; catálogo, CI único y homónimos, venta, pagos, históricos, promociones, reportes, PDF, XLSX y baja lógica.')
     finally:
         process.terminate()
         try:process.wait(timeout=15)

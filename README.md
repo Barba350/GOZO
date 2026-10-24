@@ -47,7 +47,7 @@ El servidor aplica los permisos incluso si se manipula el menú o se llama direc
 
 ## Arquitectura
 
-**Vista → Controller → Service → Repository → SQLite.** La inyección de dependencias usa una instancia por solicitud. Los Controllers y Services del negocio no consultan el DbContext directamente. El código de bootstrap configura las bases al iniciar. Los repositorios coordinan las escrituras con UnitOfWork.
+**Vista → Controller → Service → Repository → SQLite / PostgreSQL.** La inyección de dependencias usa una instancia por solicitud. Los Controllers y Services del negocio no consultan el DbContext directamente. El código de bootstrap configura las bases al iniciar. Los repositorios coordinan las escrituras con UnitOfWork.
 
 | Carpeta/archivo | Contenido |
 | --- | --- |
@@ -66,7 +66,7 @@ Para ventas y gestión se utilizan vistas Razor reales; JavaScript aporta intera
 
 ## Publicar y usar desde móvil
 
-Sigue **PUBLICAR.md**. La configuración de hosting de pago fue retirada. La propuesta gratuita con PostgreSQL está pendiente de confirmación y adaptación; no publiques SQLite en almacenamiento temporal. GitHub guarda el código; el hosting ejecuta ASP.NET. SQLite debe vivir en un disco persistente del servidor. No hay una app Android separada: se accede por HTTPS desde cualquier lugar. El menú y ticket se adaptan al teléfono. Puedes añadir el enlace a la pantalla de inicio; requiere conexión.
+Sigue **PUBLICAR.md**. La configuración de hosting de pago fue retirada. La versión de internet usa PostgreSQL externo; no publiques SQLite en almacenamiento temporal. GitHub guarda el código; el hosting ejecuta ASP.NET. SQLite debe vivir en un disco persistente del servidor. No hay una app Android separada: se accede por HTTPS desde cualquier lugar. El menú y ticket se adaptan al teléfono. Puedes añadir el enlace a la pantalla de inicio; requiere conexión.
 
 El ZIP no contiene App_Data, usuarios, contraseñas, claves ni datos de clientes. La app crea sus bases en el primer inicio. `schema.sql` es una referencia del esquema de negocio, no hay que ejecutarlo sobre una base existente.
 
@@ -78,7 +78,7 @@ No hay registro público, cuentas demo ni secretos predeterminados. No hay auten
 
 ## Verificación
 
-El entorno local de edición no dispone de .NET ni Docker. La verificación se ejecutó en GitHub Actions: compilación C#/Razor, scripts, ticket, integración HTTP del negocio y seguridad, auditoría de dependencias y exclusión de bases/secretos terminaron correctamente. Evidencia de la revisión de código: https://github.com/Barba350/GOZO/actions/runs/40059932938 (commit 54f1126). La imagen Docker, la revisión visual en móviles y un despliegue público real todavía no están verificados. No hay una auditoría independiente ni una versión PostgreSQL completada.
+El entorno local de edición no dispone de .NET ni Docker. La verificación se ejecutó en GitHub Actions: compilación C#/Razor, scripts, ticket, integración HTTP del negocio y seguridad, auditoría de dependencias y exclusión de bases/secretos terminaron correctamente. Evidencia de la revisión de código: https://github.com/Barba350/GOZO/actions/runs/40059932938 (commit 54f1126). La imagen Docker, la revisión visual en móviles y un despliegue público real todavía no están verificados. La nueva integración PostgreSQL dispone de su propia prueba en CI; no hay auditoría independiente.
 
 ```sh
 dotnet build
@@ -88,7 +88,7 @@ python tests/aceptacion.py
 
 La integración crea una copia temporal y bases propias: no modifica tus ventas. Comprueba negocio y acceso anónimo, CSRF, roles, cambio obligatorio de clave, hash, bloqueo, revocación y cabeceras. Los secretos de prueba se generan al ejecutar y no se almacenan en el código. Las pruebas del navegador móvil y el flujo completo de producción siguen pendientes de ejecución real.
 
-Para defenderlo: «MVC separa la presentación, los datos y los controladores; Services contiene las reglas y Repository accede a SQLite. Las cuentas separan funciones de dueño y cajero. El servidor central permite trabajar desde computadora y celular con la misma información».
+Para defenderlo: «MVC separa la presentación, los datos y los controladores; Services contiene las reglas y Repository accede a SQLite local o PostgreSQL en internet. Las cuentas separan funciones de dueño y cajero. El servidor central permite trabajar desde computadora y celular con la misma información».
 
 
 ## PostgreSQL para internet (octubre 2026)

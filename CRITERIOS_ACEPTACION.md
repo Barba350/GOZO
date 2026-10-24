@@ -69,11 +69,11 @@ El campo de contacto solicitado por los criterios originales se concreta como n�
 
 ## Ampliación: acceso por internet y permisos
 
-La revisión agrega inicio de sesión obligatorio, cuentas de dueño/cajero, CSRF, límites de solicitudes, bloqueo temporal y auditoría básica. Reportes, catálogo administrativo, promociones e historial de clientes requieren dueño; ventas y registro/búsqueda de clientes admiten cajeros. Las pruebas de integración ahora inician sesión y usan tokens CSRF. Su ejecución en .NET y la verificación visual móvil siguen pendientes. Ver SECURITY.md y PUBLICAR.md.
+La revisión agrega inicio de sesión obligatorio, cuentas de dueño/cajero, CSRF, límites de solicitudes, bloqueo temporal y auditoría básica. Reportes, catálogo administrativo, promociones e historial de clientes requieren dueño; ventas y registro/búsqueda de clientes admiten cajeros. Las pruebas de integración ahora inician sesión y usan tokens CSRF. La suite .NET ya fue ejecutada; la verificación visual móvil sigue pendiente. Ver SECURITY.md y PUBLICAR.md.
 
 ## Verificación en GitHub
 
-Compilación y suite HTTP de negocio/seguridad: https://github.com/Barba350/GOZO/actions/runs/40059932938. Las pruebas visuales de móvil y la adaptación a PostgreSQL siguen pendientes.
+Compilación y suite HTTP de negocio/seguridad: https://github.com/Barba350/GOZO/actions/runs/40059932938. Las pruebas visuales de móvil siguen pendientes; la adaptación PostgreSQL se añadió después con una suite separada.
 
 
 ## PostgreSQL para internet (octubre 2026)
