@@ -1,6 +1,6 @@
 # GOZO — MVC, móvil y acceso protegido
 
-C# ASP.NET Core MVC 8, Services, Repository, vistas Razor, Entity Framework y SQLite. Basado en los diez HU y 43 criterios de los Excel originales, con CI único, celular de 8 dígitos, logo PNG y ticket solicitado. Esta revisión añade cuentas, permisos y preparación para despliegue HTTPS. No está publicado todavía: ver PUBLICAR.md.
+C# ASP.NET Core MVC 8, Services, Repository, vistas Razor, Entity Framework y SQLite. Basado en los diez HU y 43 criterios de los Excel originales, con CI único, celular de 8 dígitos, logo PNG y ticket solicitado. Esta revisión añade cuentas, permisos y preparación para despliegue HTTPS. Publicado en https://gozo-barba350.onrender.com; ver PUBLICAR.md.
 
 ## Ejecutar en tu computadora
 
@@ -25,7 +25,8 @@ Si una instalación anterior ya tiene ventas, conserva tu `App_Data/gozo.db`. La
 | Registrar y buscar clientes por CI, nombre o celular | Sí | Sí |
 | Crear/editar/retirar productos | No | Sí |
 | Administrar promociones | No | Sí |
-| Ver reportes, exportar PDF/Excel e historial por cliente | No | Sí |
+| Ver reportes y exportar PDF/Excel | Sí | Sí |
+| Ver historial individual de clientes | No | Sí |
 | Crear/desactivar cuentas y restablecer contraseñas | No | Sí |
 | Cambiar su propia contraseña y cerrar sesión | Sí | Sí |
 
