@@ -10,7 +10,7 @@ public class AccountService(IAccountRepository repository, IPasswordHasher<Accou
     private static readonly string DummyHash = new PasswordHasher<Account>(Microsoft.Extensions.Options.Options.Create(new PasswordHasherOptions { IterationCount = 210000 })).HashPassword(Dummy, Guid.NewGuid().ToString());
     public async Task<Account> Login(string username, string password, string ip) {
         await using var tx = await repository.Transaction();
-        var account = await repository.Find(username.Trim().ToUpperInvariant());
+        var account = await repository.Find(Rules.Key(username));
         var result = hasher.VerifyHashedPassword(account ?? Dummy, account?.PasswordHash ?? DummyHash, password);
         if (account == null || !account.Active || account.LockedUntil > DateTime.UtcNow) {
             repository.Audit(username, "Acceso rechazado", ip); await repository.Save(); await tx.Commit(); throw new RuleException(InvalidLogin);
@@ -35,8 +35,8 @@ public class AccountService(IAccountRepository repository, IPasswordHasher<Accou
         return a != null && a.Active && a.Stamp == principal?.FindFirstValue("stamp") && a.Role == principal.FindFirstValue(ClaimTypes.Role);
     }
     public async Task Create(CreateAccountInput input, string actor, string ip, bool bootstrap = false) {
-        var username = input.Username ?? "";
-        if (!Regex.IsMatch(username, @"^[a-zA-Z0-9._-]{3,40}$")) throw new RuleException("Usuario: 3 a 40 letras, números, punto, guion o guion bajo.");
+        var username = Regex.Replace((input.Username ?? "").Trim(), @"\s+", " ");
+        if (!Regex.IsMatch(username, @"^[\p{L}\p{N}][\p{L}\p{N} ._-]{2,39}$")) throw new RuleException("Usuario: 3 a 40 caracteres; letras, números, espacios, punto, guion o guion bajo.");
         ValidatePassword(input.Password);
         if (input.Role is not ("Dueno" or "Cajero")) throw new RuleException("Rol inválido.");
         if (await repository.Find(username.ToUpperInvariant()) != null) throw new RuleException("Ese usuario ya existe.");

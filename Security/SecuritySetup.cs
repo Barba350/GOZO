@@ -41,6 +41,7 @@ public static class SecuritySetup
         });
         builder.Services.AddAuthorization(o => {
             o.FallbackPolicy = new AuthorizationPolicyBuilder("GozoCookie").RequireAuthenticatedUser().Build();
+            o.AddPolicy("Reportes", p => p.RequireAuthenticatedUser().RequireRole("Dueno", "Cajero"));
             o.AddPolicy("Dueno", p => p.RequireAuthenticatedUser().RequireRole("Dueno"));
         });
         builder.Services.AddRateLimiter(o => {

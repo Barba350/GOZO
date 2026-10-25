@@ -1,7 +1,7 @@
 @model GOZO.AccountsViewModel
 @{ Layout = "_AccountLayout"; }
 <div class="card"><h1>Usuarios y seguridad</h1><p class="hint">Cada persona debe usar su cuenta. Los nuevos usuarios deben cambiar su contraseña al ingresar.</p>
-<form asp-controller="Usuarios" asp-action="Crear" method="post"><div class="row"><label>Usuario<input name="Username" required minlength="3" maxlength="40" pattern="[a-zA-Z0-9._-]{3,40}" autocomplete="off"></label><label>Contraseña temporal<input name="Password" type="password" autocomplete="new-password" required minlength="14" maxlength="128"></label><label>Permisos<select name="Role"><option value="Cajero">Cajero</option><option value="Dueno">Dueño</option></select></label></div><button class="primary" type="submit">Crear usuario</button></form>
+<form asp-controller="Usuarios" asp-action="Crear" method="post"><div class="row"><label>Usuario<input name="Username" required minlength="3" maxlength="40" autocomplete="off" placeholder="Ej. Luis Heredia"></label><label>Contraseña temporal<input name="Password" type="password" autocomplete="new-password" required minlength="14" maxlength="128"></label><label>Permisos<select name="Role"><option value="Cajero">Cajero</option><option value="Dueno">Dueño</option></select></label></div><button class="primary" type="submit">Crear usuario</button></form>
 <div class="table-wrap"><table><thead><tr><th>Usuario</th><th>Rol</th><th>Estado</th><th></th></tr></thead><tbody>
 @foreach (var account in Model.Accounts) {
     <tr><td>@account.Username</td><td>@(account.Role == "Dueno" ? "Dueño" : "Cajero")</td><td>@(account.Active ? "Activo" : "Desactivado")</td><td>

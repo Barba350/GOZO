@@ -32,7 +32,7 @@ with tempfile.TemporaryDirectory(prefix='gozo-qa-') as folder:
     base=f'http://127.0.0.1:{port}/api'
     log=open(pathlib.Path(folder)/'servidor.log','w+')
     owner_password=secrets.token_urlsafe(24)
-    test_env=dict(os.environ,ASPNETCORE_ENVIRONMENT='Development',DOTNET_ENVIRONMENT='Development',GOZO_ADMIN_USERNAME='qaowner',GOZO_ADMIN_PASSWORD=owner_password,GOZO_DATA_DIR=str(project/'App_Data'))
+    test_env=dict(os.environ,ASPNETCORE_ENVIRONMENT='Development',DOTNET_ENVIRONMENT='Development',GOZO_ADMIN_USERNAME='Luis Heredia',GOZO_ADMIN_PASSWORD=owner_password,GOZO_DATA_DIR=str(project/'App_Data'))
     process=subprocess.Popen(['dotnet','run','--project',str(project/'GOZO.csproj'),'--no-launch-profile','--','--urls',f'http://127.0.0.1:{port}'],cwd=project,stdout=log,stderr=subprocess.STDOUT,env=test_env)
     root=base.removesuffix('/api')
     owner=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
@@ -71,14 +71,14 @@ with tempfile.TemporaryDirectory(prefix='gozo-qa-') as folder:
         if not ready:
             log.seek(0);raise AssertionError('No se pudo iniciar ASP.NET:\n'+log.read())
         call('/categorias',status=401)
-        html=login(owner,'qaowner',owner_password);owner_csrf=Tokens(html).token;assert owner_csrf
+        html=login(owner,' Luis   Heredia ',owner_password);owner_csrf=Tokens(html).token;assert owner_csrf
         assert 'Dueno' in html
         call('/productos','POST',{'name':'No CSRF','price':10,'categoryId':1},400,csrf='')
         for route,key in [('Ventas','venta'),('Productos','productos'),('Clientes','clientes'),('Promociones','promociones'),('Reportes','reportes'),('Historial','historial')]:
             html=owner.open(root+'/'+route).read().decode()
             assert f'data-page="{key}"' in html and 'gozo-logo.png' in html,(route,'Vista Razor incompleta')
         assert urllib.request.urlopen(base.removesuffix('/api')+'/images/gozo-logo.png').read().startswith(b'\x89PNG\r\n\x1a\n')
-        cats=call('/categorias');assert [c['name'] for c in cats]==['Helados','Hamburguesas','Bebidas']
+        cats=call('/categorias');assert [c['name'] for c in cats]==['Helados', 'Hamburguesas', 'Bebidas', 'Sándwiches y croissants', 'Salchipapas', 'Platos de pollo', 'Empanadas', 'Cafetería', 'Jugos naturales', 'Postres']
         p=call('/productos','POST',{'name':'Helado QA','price':10,'categoryId':cats[0]['id']},201)
         p2=call('/productos','POST',{'name':'Bebida QA','price':5,'categoryId':cats[2]['id']},201)
         call('/productos','POST',{'name':'  HELADO   QA ','price':10,'categoryId':cats[0]['id']},400)
@@ -91,6 +91,7 @@ with tempfile.TemporaryDirectory(prefix='gozo-qa-') as folder:
         call('/clientes','POST',{'name':'Otra persona','ci':'1.234.567','contact':'70000002'},400)
         assert call('/clientes?buscar=1234567')[0]['id']==c['id']
         assert len(call('/clientes?buscar=Ana'))==2
+        assert len(call('/categorias'))==10
         def sale(items,customer=None,payment='EFECTIVO'):
             return {'customerId':customer,'payment':payment,'items':items,'requestId':str(uuid.uuid4())}
         items=[{'productId':p['id'],'quantity':2},{'productId':p2['id'],'quantity':1}]
@@ -170,7 +171,15 @@ with tempfile.TemporaryDirectory(prefix='gozo-qa-') as folder:
         web(cashier,'/Cuenta/CambiarClave',{'CurrentPassword':temp_password,'NewPassword':cashier_password,'ConfirmPassword':cashier_password,'__RequestVerificationToken':token})
         html=login(cashier,'qacashier',cashier_password);cashier_csrf=Tokens(html).token;assert cashier_csrf
         call('/categorias',opener=cashier)
-        call('/reportes',status=403,opener=cashier)
+        assert call('/reportes?desde=2000-01-01&hasta=2100-01-01',opener=cashier)['income']==5860
+        assert call('/reportes/pdf?desde=2000-01-01&hasta=2100-01-01',opener=cashier,raw=True).startswith(b'%PDF-1.4')
+        with zipfile.ZipFile(io.BytesIO(call('/reportes/excel?desde=2000-01-01&hasta=2100-01-01',opener=cashier,raw=True))) as z:assert 'xl/workbook.xml' in z.namelist()
+        report_html=web(cashier,'/Reportes')
+        assert 'data-page="reportes"' in report_html and 'href="/Reportes"' in report_html
+        call(f'/clientes/{c["id"]}/historial',status=403,opener=cashier)
+        web(cashier,'/Historial',status=403)
+        web(cashier,'/Productos',status=403)
+        web(cashier,'/Promociones',status=403)
         call('/productos','POST',{'name':'No permitido','price':10,'categoryId':1},403,opener=cashier,csrf=cashier_csrf)
         web(cashier,'/Usuarios',status=403)
         # CSRF en logout: no se acepta cerrar por POST sin token.
@@ -202,6 +211,7 @@ with tempfile.TemporaryDirectory(prefix='gozo-qa-') as folder:
             log.seek(0);raise AssertionError('No reinició: '+log.read())
         assert call('/reportes?desde=2000-01-01&hasta=2100-01-01')['income']==5860
         assert len(call('/clientes?buscar=Ana'))==2
+        assert len(call('/categorias'))==10
         if os.environ.get('GOZO_DB_PROVIDER', 'SQLite') == 'SQLite':
             # Regresión: formulario CSRF con cookies Secure detrás de terminación TLS.
             process.terminate();process.wait(timeout=15)

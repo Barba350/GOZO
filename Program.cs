@@ -46,10 +46,7 @@ app.UseMiddleware<AccountAccessMiddleware>();
 using (var scope = app.Services.CreateScope()) {
     var db = scope.ServiceProvider.GetRequiredService<GozoDb>();
     await DatabaseSetup.Initialize(db, scope.ServiceProvider.GetRequiredService<AccountsDb>());
-    if (!db.Categories.Any()) {
-        db.Categories.AddRange(new Category { Name = "Helados" }, new Category { Name = "Hamburguesas" }, new Category { Name = "Bebidas" });
-        db.SaveChanges();
-    }
+    await CatalogDefaults.EnsureCategories(db);
 }
 await OwnerBootstrap.EnsureOwner(app.Services, builder.Configuration, args.Contains("--crear-dueno"));
 if (args.Contains("--crear-dueno")) return;

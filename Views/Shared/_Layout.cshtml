@@ -24,7 +24,7 @@
         <nav id="main-nav" aria-label="Navegación principal">
             @foreach (var item in new[] { ("venta", "Ventas", "＋", "Nueva venta"), ("productos", "Productos", "▦", "Productos"), ("clientes", "Clientes", "♧", "Clientes"), ("promociones", "Promociones", "◇", "Promociones"), ("reportes", "Reportes", "▤", "Reportes"), ("historial", "Historial", "↶", "Historial de cliente") })
             {
-                if (!User.IsInRole("Dueno") && item.Item1 != "venta" && item.Item1 != "clientes") { continue; }
+                if (!User.IsInRole("Dueno") && item.Item1 != "venta" && item.Item1 != "clientes" && item.Item1 != "reportes") { continue; }
                 <a asp-controller="@item.Item2" asp-action="Index" data-page="@item.Item1" class="@(Model.Page == item.Item1 ? "selected" : "")"><span class="nav-icon">@item.Item3</span>@item.Item4<span class="nav-arrow" aria-hidden="true">↗</span></a>
             }
         </nav>

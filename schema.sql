@@ -17,4 +17,4 @@ CREATE TABLE "PromotionProduct" ("PromotionId" INTEGER NOT NULL,"ProductId" INTE
 CREATE INDEX "IX_PromotionProduct_ProductId" ON "PromotionProduct"("ProductId");
 CREATE TABLE "PromotionCustomer" ("PromotionId" INTEGER NOT NULL,"CustomerId" INTEGER NOT NULL,CONSTRAINT "PK_PromotionCustomer" PRIMARY KEY("PromotionId","CustomerId"),FOREIGN KEY("PromotionId") REFERENCES "Promotions"("Id") ON DELETE CASCADE,FOREIGN KEY("CustomerId") REFERENCES "Customers"("Id") ON DELETE CASCADE);
 CREATE INDEX "IX_PromotionCustomer_CustomerId" ON "PromotionCustomer"("CustomerId");
-INSERT INTO "Categories"("Name") VALUES ('Helados'),('Hamburguesas'),('Bebidas');
+INSERT INTO "Categories"("Name") VALUES ('Helados'),('Hamburguesas'),('Bebidas'),('Sándwiches y croissants'),('Salchipapas'),('Platos de pollo'),('Empanadas'),('Cafetería'),('Jugos naturales'),('Postres');
