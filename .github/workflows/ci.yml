@@ -33,7 +33,7 @@ jobs:
           node-version: '22'
       - run: dotnet restore
       - run: dotnet build --configuration Release --no-restore
-      - run: node --check wwwroot/app.js && node --check wwwroot/interactions.js
+      - run: node --check wwwroot/app.js && node --check wwwroot/interactions.js && node --check wwwroot/orders.js
       - run: node tests/ticket-ui.test.cjs
       - run: python tests/aceptacion.py
       - run: pip install "psycopg[binary]>=3.2,<4"

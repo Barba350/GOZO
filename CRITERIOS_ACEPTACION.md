@@ -84,3 +84,10 @@ SQLite sigue disponible localmente. Se añadió PostgreSQL para ventas, cuentas 
 ## Menú y reportes para cajeros
 
 Se añaden siete categorías del menú: Sándwiches y croissants, Salchipapas, Platos de pollo, Empanadas, Cafetería, Jugos naturales y Postres. Se conservan Helados, Hamburguesas y Bebidas con sus IDs; el arranque agrega solo categorías faltantes y no carga ni cambia productos o precios. Dueños y cajeros pueden consultar Reportes y descargar PDF/Excel de todas las ventas del periodo. Usuarios, catálogo administrativo, promociones e historial individual de clientes siguen restringidos al dueño. Los nombres de usuario admiten espacios y letras con acentos; por ejemplo, Luis Heredia.
+
+
+## Pedidos por WhatsApp
+
+Dueños y cajeros registran manualmente pedidos con receptor, celular de 8 dígitos, productos, notas y cliente registrado opcional (con CI). No se conecta a WhatsApp ni se importan chats. Estados: Pendiente, Entregado y Cancelado. Al entregar se exige Efectivo o QR; se crea una única venta con fecha de entrega y los importes/descuentos acordados al registrar el pedido. Los pendientes y cancelados no suman ingresos. No se permite cancelar pedidos ya entregados ni entregar cancelados. Reintentos y operaciones simultáneas se protegen con transacciones, revisión de concurrencia e índices únicos. No se editan ni eliminan pedidos en esta versión.
+
+La migración aditiva 001-orders está versionada en Data/Migrations para SQLite y PostgreSQL; se ejecuta al iniciar, sobre instalaciones nuevas y existentes, y registra su versión. No modifica tablas ni ventas previas. Pruebas HTTP incluyen conversión a venta, cancelación, reintentos, concurrencia, permisos y persistencia tras reinicio. La lista muestra hasta 200 pedidos recientes por estado.

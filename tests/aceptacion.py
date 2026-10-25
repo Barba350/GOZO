@@ -27,6 +27,11 @@ source = pathlib.Path(__file__).resolve().parents[1]
 with tempfile.TemporaryDirectory(prefix='gozo-qa-') as folder:
     project = pathlib.Path(folder)/'GOZO'
     shutil.copytree(source, project, ignore=shutil.ignore_patterns('bin','obj','App_Data','.vs','__pycache__'))
+    if os.environ.get('GOZO_DB_PROVIDER', 'SQLite') == 'SQLite':
+        import sqlite3
+        (project/'App_Data').mkdir(exist_ok=True)
+        legacy=sqlite3.connect(project/'App_Data/gozo.db')
+        legacy.executescript((project/'schema.sql').read_text());legacy.close()
     with socket.socket() as sock:
         sock.bind(('127.0.0.1',0)); port=sock.getsockname()[1]
     base=f'http://127.0.0.1:{port}/api'
@@ -71,10 +76,11 @@ with tempfile.TemporaryDirectory(prefix='gozo-qa-') as folder:
         if not ready:
             log.seek(0);raise AssertionError('No se pudo iniciar ASP.NET:\n'+log.read())
         call('/categorias',status=401)
+        call('/pedidos',status=401)
         html=login(owner,' Luis   Heredia ',owner_password);owner_csrf=Tokens(html).token;assert owner_csrf
         assert 'Dueno' in html
         call('/productos','POST',{'name':'No CSRF','price':10,'categoryId':1},400,csrf='')
-        for route,key in [('Ventas','venta'),('Productos','productos'),('Clientes','clientes'),('Promociones','promociones'),('Reportes','reportes'),('Historial','historial')]:
+        for route,key in [('Ventas','venta'),('Productos','productos'),('Clientes','clientes'),('Promociones','promociones'),('Reportes','reportes'),('Historial','historial'),('Pedidos','pedidos')]:
             html=owner.open(root+'/'+route).read().decode()
             assert f'data-page="{key}"' in html and 'gozo-logo.png' in html,(route,'Vista Razor incompleta')
         assert urllib.request.urlopen(base.removesuffix('/api')+'/images/gozo-logo.png').read().startswith(b'\x89PNG\r\n\x1a\n')
@@ -184,6 +190,50 @@ with tempfile.TemporaryDirectory(prefix='gozo-qa-') as folder:
         web(cashier,'/Usuarios',status=403)
         # CSRF en logout: no se acepta cerrar por POST sin token.
         web(cashier,'/Cuenta/Salir',{},status=400)
+        # Pedidos: cajero registra, entrega una sola vez y cancela sin vender.
+        assert 'href="/Pedidos"' in web(cashier,'/Pedidos')
+        order_input={'contactName':'Pedido WhatsApp','contactPhone':'71234567','notes':'Recoger en tienda','customerId':c['id'],'items':[{'productId':p2['id'],'quantity':2}],'requestId':str(uuid.uuid4()),'expectedTotal':1000}
+        call('/pedidos','POST',order_input,400,opener=cashier,csrf='')
+        call('/pedidos','POST',{**order_input,'contactPhone':'correo@example.com'},400,opener=cashier,csrf=cashier_csrf)
+        call('/pedidos','POST',{**order_input,'items':[]},400,opener=cashier,csrf=cashier_csrf)
+        call('/pedidos','POST',{**order_input,'expectedTotal':1},400,opener=cashier,csrf=cashier_csrf)
+        pending=call('/pedidos','POST',order_input,opener=cashier,csrf=cashier_csrf)
+        assert pending['status']=='PENDIENTE' and pending['saleId'] is None and pending['total']==1000
+        assert call('/pedidos','POST',order_input,opener=cashier,csrf=cashier_csrf)['id']==pending['id']
+        assert call('/reportes?desde=2000-01-01&hasta=2100-01-01')['income']==5860
+        assert len(call('/pedidos?estado=PENDIENTE'))==1
+        call('/pedidos?estado=INVALIDO',status=400)
+        call(f'/pedidos/{pending["id"]}/entregar','POST',{'payment':''},400,opener=cashier,csrf=cashier_csrf)
+        call('/productos/'+str(p2['id']),'PUT',{'name':'Bebida precio nuevo','price':7,'categoryId':cats[2]['id']})
+        delivered=call(f'/pedidos/{pending["id"]}/entregar','POST',{'payment':'QR'},opener=cashier,csrf=cashier_csrf)
+        assert delivered['status']=='ENTREGADO' and delivered['saleId'] and delivered['total']==1000
+        assert delivered['lines'][0]['name']=='Bebida QA' and delivered['lines'][0]['unitPrice']==500
+        repeat=call(f'/pedidos/{pending["id"]}/entregar','POST',{'payment':'QR'},opener=cashier,csrf=cashier_csrf)
+        assert repeat['saleId']==delivered['saleId']
+        call(f'/pedidos/{pending["id"]}/cancelar','POST',status=400)
+        canceled=call('/pedidos','POST',{**order_input,'requestId':str(uuid.uuid4()),'customerId':None,'expectedTotal':1400})
+        canceled=call(f'/pedidos/{canceled["id"]}/cancelar','POST',opener=cashier,csrf=cashier_csrf)
+        assert canceled['status']=='CANCELADO' and canceled['saleId'] is None
+        assert call(f'/pedidos/{canceled["id"]}/cancelar','POST')['status']=='CANCELADO'
+        call(f'/pedidos/{canceled["id"]}/entregar','POST',{'payment':'EFECTIVO'},400)
+        order_report=call('/reportes?desde=2000-01-01&hasta=2100-01-01')
+        assert order_report['income']==6860 and order_report['count']==4
+        sale_from_order=next(x for x in order_report['sales'] if x['id']==delivered['saleId'])
+        assert sale_from_order['payment']=='QR' and sale_from_order['customerId']==c['id'] and sale_from_order['total']==1000
+        assert len(call('/pedidos?estado=ENTREGADO'))==1 and len(call('/pedidos?estado=CANCELADO'))==1
+        # Dos cajeros entregando simultáneamente nunca deben crear dos ventas.
+        race=call('/pedidos','POST',{**order_input,'requestId':str(uuid.uuid4()),'expectedTotal':1400})
+        import concurrent.futures
+        def deliver_race(_):
+            req=urllib.request.Request(base+f'/pedidos/{race["id"]}/entregar',data=json.dumps({'payment':'EFECTIVO'}).encode(),headers={'Content-Type':'application/json','X-CSRF-TOKEN':owner_csrf},method='POST')
+            try:r=owner.open(req,timeout=30)
+            except urllib.error.HTTPError as e:r=e
+            body=r.read();assert r.code in (200,409),(r.code,body)
+            return r.code
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:race_status=list(pool.map(deliver_race,range(2)))
+        assert 200 in race_status
+        assert call('/reportes?desde=2000-01-01&hasta=2100-01-01')['income']==8260
+        assert call('/reportes?desde=2000-01-01&hasta=2100-01-01')['count']==5
         # Bloqueo persistente de un usuario activo después de cinco contraseñas erróneas.
         for _ in range(5):login(owner,'qacashier','incorrect-password')
         db=account_db()
@@ -209,9 +259,11 @@ with tempfile.TemporaryDirectory(prefix='gozo-qa-') as folder:
             except OSError:time.sleep(1)
         if not restarted:
             log.seek(0);raise AssertionError('No reinició: '+log.read())
-        assert call('/reportes?desde=2000-01-01&hasta=2100-01-01')['income']==5860
+        assert call('/reportes?desde=2000-01-01&hasta=2100-01-01')['income']==8260
         assert len(call('/clientes?buscar=Ana'))==2
         assert len(call('/categorias'))==10
+        assert len(call('/pedidos?estado=ENTREGADO'))==2
+        assert len(call('/pedidos?estado=CANCELADO'))==1
         if os.environ.get('GOZO_DB_PROVIDER', 'SQLite') == 'SQLite':
             # Regresión: formulario CSRF con cookies Secure detrás de terminación TLS.
             process.terminate();process.wait(timeout=15)

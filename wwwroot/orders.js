@@ -1,0 +1,50 @@
+'use strict';
+let orderFilter='PENDIENTE',orderList=[],orderSearch='',orderDraft=[],orderDraftQuote=null,orderDraftRequest='',orderQuoteVersion=0;
+const orderStatus = status => ({PENDIENTE:'Pendiente',ENTREGADO:'Entregado',CANCELADO:'Cancelado'})[status]||status;
+async function ordersPage(){
+ orderList=await api('/pedidos'+(orderFilter?'?estado='+orderFilter:''));
+ $('#content').innerHTML=`<div class="card"><div class="row between"><div><h2>Pedidos por WhatsApp</h2><p class="hint">Registra el pedido recibido. Al entregar, confirma el pago para generar su venta.</p></div><button class="primary" data-order-new>＋ Nuevo pedido</button></div><div class="tabs order-tabs">${[['PENDIENTE','Pendientes'],['ENTREGADO','Entregados'],['CANCELADO','Cancelados'],['','Todos']].map(([value,label])=>`<button data-order-filter="${value}" class="${value===orderFilter?'active':''}">${label}</button>`).join('')}</div><input id="order-search" class="search" placeholder="Buscar por número, nombre o celular" aria-label="Buscar pedido" value="${esc(orderSearch)}"><p class="hint">Hasta 200 pedidos recientes del estado seleccionado. Los pendientes y cancelados no cuentan como ventas.</p><div id="order-list"></div></div>`;
+ $('#order-search').oninput=e=>{orderSearch=e.target.value;renderOrders();};renderOrders();
+}
+function renderOrders(){
+ const key=orderSearch.toLowerCase().trim();const list=orderList.filter(o=>(o.id+' '+o.contactName+' '+o.contactPhone).toLowerCase().includes(key));
+ $('#order-list').innerHTML=list.length?`<div class="order-grid">${list.map(o=>`<article class="order-card"><div class="row between"><strong>Pedido #${o.id}</strong><span class="order-status ${o.status.toLowerCase()}">${orderStatus(o.status)}</span></div><p><strong>${esc(o.contactName)}</strong><br><span class="muted">${esc(o.contactPhone)} · ${dateTime(o.createdAt)}</span></p><p>${o.lines.map(l=>`${l.quantity} × ${esc(l.name)}`).join('<br>')}</p>${o.notes?`<p class="order-notes">${esc(o.notes)}</p>`:''}<div class="row between"><strong>${money(o.total)}</strong><button class="secondary tiny" data-order-detail="${o.id}">Ver detalle</button></div>${o.saleId?`<p class="hint">Venta #${o.saleId} · ${esc(o.payment)}</p>`:''}${o.status==='PENDIENTE'?`<div class="order-actions"><button class="primary" data-order-deliver="${o.id}">Entregar y registrar venta</button><button class="danger" data-order-cancel="${o.id}">Cancelar pedido</button></div>`:''}</article>`).join('')}</div>`:empty('No hay pedidos para esta búsqueda.');
+}
+function orderDetails(o){return `<p><strong>${esc(o.contactName)}</strong> · ${esc(o.contactPhone)}</p><p class="hint">${orderStatus(o.status)} · ${dateTime(o.createdAt)}</p>${o.notes?`<p class="order-notes">${esc(o.notes)}</p>`:''}<div class="order-lines">${o.lines.map(l=>`<p class="row between"><span>${l.quantity} × ${esc(l.name)}<br><small>${money(l.unitPrice)} c/u${l.promotion?' · '+esc(l.promotion):''}</small></span><strong>${money(l.total)}</strong></p>`).join('')}</div><p class="row between"><span>Descuento acordado</span><span>${money(o.discount)}</span></p><p class="row between grand"><span>Total</span><strong>${money(o.total)}</strong></p>${o.saleId?`<p class="hint">Venta #${o.saleId} · ${esc(o.payment)} · ${dateTime(o.closedAt)}</p>`:''}`;}
+function orderForm(){
+ if(!products.length){notice('Primero registra productos para poder tomar pedidos.',true);return;}
+ orderDraft=[];orderDraftQuote=null;orderDraftRequest=crypto.randomUUID();orderQuoteVersion++;
+ openModal(`<h2>Nuevo pedido de WhatsApp</h2><form id="editor"><label>Cliente registrado (opcional)<select id="order-customer" name="customerId"><option value="">Sin vincular</option>${options(customers,'')}</select></label><div class="row"><label>Nombre de quien recibe<input name="contactName" required maxlength="120" autocomplete="name"></label><label>Celular<input name="contactPhone" type="tel" inputmode="numeric" pattern="[0-9]{8}" minlength="8" maxlength="8" required placeholder="71234567"></label></div><label>Notas o dirección<textarea name="notes" maxlength="1000" rows="2" placeholder="Ej. recoger a las 18:00, sin cebolla…"></textarea></label><div class="row order-product-picker"><label>Producto<select id="order-product">${products.map(p=>`<option value="${p.id}">${esc(p.name)} · ${money(p.price)}</option>`).join('')}</select></label><label>Cantidad<input id="order-quantity" type="number" min="1" max="999" value="1"></label><button type="button" class="secondary" data-order-add>Agregar</button></div><div id="order-draft-lines"></div><div id="order-draft-total" aria-live="polite"></div><p class="hint">Se guarda como pendiente, sin cobrar. El importe y los descuentos quedan acordados al guardar.</p><div class="form-actions">${closeButton()}<button type="submit" class="primary" disabled>Guardar pedido pendiente</button></div></form>`);
+ $('#order-customer').onchange=async e=>{const c=customers.find(c=>c.id===Number(e.target.value));if(c){$('#editor [name=contactName]').value=c.name;$('#editor [name=contactPhone]').value=c.contact;}orderDraftRequest=crypto.randomUUID();await quoteOrderDraft();};
+ $('#editor').addEventListener('input',()=>{orderDraftRequest=crypto.randomUUID();});
+ bindForm(async f=>{if(!orderDraftQuote)throw Error('Agrega productos y espera el cálculo del total.');const o=await api('/pedidos','POST',{contactName:f.get('contactName'),contactPhone:f.get('contactPhone'),notes:f.get('notes'),customerId:f.get('customerId')?Number(f.get('customerId')):null,items:orderDraft,requestId:orderDraftRequest,expectedTotal:orderDraftQuote.total});$('#modal').close();orderFilter='PENDIENTE';await ordersPage();notice('Pedido #'+o.id+' guardado como pendiente.');});
+ renderOrderDraft();
+}
+function renderOrderDraft(){
+ $('#order-draft-lines').innerHTML=orderDraft.length?orderDraft.map(l=>`<div class="row between order-draft-line"><span>${l.quantity} × ${esc(productName(l.productId))}</span><button type="button" class="danger tiny" data-order-remove="${l.productId}" aria-label="Quitar ${esc(productName(l.productId))}">×</button></div>`).join(''):empty('Agrega los productos del pedido.');
+}
+async function quoteOrderDraft(){
+ const version=++orderQuoteVersion;orderDraftQuote=null;const submit=$('#editor button[type=submit]');if(submit)submit.disabled=true;
+ $('#order-draft-total').innerHTML=orderDraft.length?'<p class="hint">Calculando…</p>':'';if(!orderDraft.length)return;
+ try{const customer=$('#order-customer').value;const q=await api('/ventas/cotizar','POST',{customerId:customer?Number(customer):null,payment:'',items:orderDraft,requestId:null});if(version!==orderQuoteVersion||!$('#order-draft-total'))return;orderDraftQuote=q;$('#order-draft-total').innerHTML=`<p class="row between grand"><span>Total acordado</span><strong>${money(q.total)}</strong></p>${q.discount?`<p class="hint">Incluye ${money(q.discount)} de descuento.</p>`:''}`;submit.disabled=false;}catch(e){if(version===orderQuoteVersion)formErrors(e);}
+}
+function deliverOrderForm(id){const o=orderList.find(o=>o.id===id);if(!o)return;
+ openModal(`<h2>Entregar pedido #${o.id}</h2>${orderDetails(o)}<form id="editor"><label>Pago recibido<select name="payment" required><option value="">Selecciona una forma de pago</option><option value="EFECTIVO">Efectivo</option><option value="QR">QR</option></select></label><p class="hint">Confirma que recibiste el pago. Se registrará una única venta por el importe acordado.</p><div class="form-actions">${closeButton()}<button class="primary" type="submit">Confirmar entrega y venta</button></div></form>`);
+ bindForm(async f=>{const result=await api('/pedidos/'+id+'/entregar','POST',{payment:f.get('payment')});$('#modal').close();await ordersPage();notice('Pedido #'+id+' entregado. Venta #'+result.saleId+' registrada por '+money(result.total)+'.');});
+}
+function cancelOrderForm(id){const o=orderList.find(o=>o.id===id);if(!o)return;
+ openModal(`<h2>Cancelar pedido #${o.id}</h2><p>¿Cancelar el pedido de <strong>${esc(o.contactName)}</strong> por ${money(o.total)}?</p><p class="hint">Se conservará como cancelado y no generará una venta.</p><form id="editor"><div class="form-actions"><button type="button" class="secondary" data-action="close">Volver</button><button class="danger" type="submit">Confirmar cancelación</button></div></form>`);
+ bindForm(async()=>{await api('/pedidos/'+id+'/cancelar','POST');$('#modal').close();await ordersPage();notice('Pedido #'+id+' cancelado. No se generó ninguna venta.');});
+}
+document.addEventListener('click',async e=>{
+ const b=e.target.closest('button');if(!b)return;
+ try{
+  if(b.hasAttribute('data-order-new'))orderForm();
+  if(b.dataset.orderFilter!==undefined){orderFilter=b.dataset.orderFilter;await ordersPage();}
+  if(b.dataset.orderDetail){const o=orderList.find(o=>o.id===Number(b.dataset.orderDetail));if(o)openModal(`<h2>Pedido #${o.id}</h2>${orderDetails(o)}<div class="form-actions"><button class="secondary" data-action="close">Cerrar</button></div>`);}
+  if(b.dataset.orderDeliver)deliverOrderForm(Number(b.dataset.orderDeliver));
+  if(b.dataset.orderCancel)cancelOrderForm(Number(b.dataset.orderCancel));
+  if(b.hasAttribute('data-order-add')){const productId=Number($('#order-product').value),quantity=Number($('#order-quantity').value);if(!Number.isInteger(quantity)||quantity<1||quantity>999)throw Error('Cantidad entre 1 y 999.');const current=orderDraft.find(l=>l.productId===productId);if((current?.quantity||0)+quantity>999)throw Error('Máximo 999 por producto.');if(current)current.quantity+=quantity;else orderDraft.push({productId,quantity});orderDraftRequest=crypto.randomUUID();renderOrderDraft();await quoteOrderDraft();}
+  if(b.dataset.orderRemove){orderDraft=orderDraft.filter(l=>l.productId!==Number(b.dataset.orderRemove));orderDraftRequest=crypto.randomUUID();renderOrderDraft();await quoteOrderDraft();}
+ }catch(error){if($('#modal').open)formErrors(error);else notice(error.message,true);}
+});

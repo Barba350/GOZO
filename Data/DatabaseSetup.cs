@@ -26,6 +26,7 @@ public static class DatabaseSetup
         if (!sales.Database.IsNpgsql()) {
             await sales.Database.EnsureCreatedAsync();
             await accounts.Database.EnsureCreatedAsync();
+            await UpgradeOrders(sales);
             return;
         }
         // Dos contextos en una base: EnsureCreated por sí solo omite el segundo.
@@ -45,9 +46,21 @@ public static class DatabaseSetup
                     await transaction.CommitAsync();
                 }
             }
+            await UpgradeOrders(sales);
         } finally {
             await using var release = new NpgsqlCommand("SELECT pg_advisory_unlock(72401683)", connection);
             await release.ExecuteNonQueryAsync();
         }
     }
+    private static async Task UpgradeOrders(GozoDb db) {
+        var dialect = db.Database.IsNpgsql() ? "postgresql" : "sqlite";
+        using var resource = typeof(DatabaseSetup).Assembly.GetManifestResourceStream($"GOZO.Data.Migrations.001_orders.{dialect}.sql")
+            ?? throw new InvalidOperationException("Falta la migración de pedidos.");
+        using var reader = new StreamReader(resource);
+        var sql = await reader.ReadToEndAsync();
+        await using var transaction = await db.Database.BeginTransactionAsync();
+        await db.Database.ExecuteSqlRawAsync(sql);
+        await transaction.CommitAsync();
+    }
+
 }
