@@ -41,7 +41,7 @@ El servidor aplica los permisos incluso si se manipula el menú o se llama direc
 - Baja lógica: las ventas conservan nombre y precio históricos. Dinero almacenado en centavos enteros.
 - Venta con detalle guardada en transacción; el servidor calcula precios y descuentos, exige efectivo o QR y evita duplicar reintentos con identificador de operación. Si cambió el total después de revisar, exige recalcular antes de cobrar.
 - QR registra el método de cobro; no genera un QR bancario ni procesa transferencias.
-- Promociones por porcentaje o monto por unidad, con fechas y clientes opcionales. Se usa la mejor promoción por producto, sin acumular; total mínimo cero. El porcentaje se redondea al centavo por línea.
+- Promociones por porcentaje o monto sobre el total de la venta, con vigencia y límite de compras por cliente con CI. Se aplica una sola promoción, sin acumular, y el total mínimo es cero.
 - Fechas de negocio en Bolivia (UTC−4). Filtros por hoy, semana desde lunes, mes o rango personalizado, incluyendo todo el último día.
 - Reportes netos de descuentos. Efectivo + QR coincide con ingresos. Exportaciones corresponden al último reporte generado.
 - Ticket: búsqueda de cliente con CI visible, cantidades, descuentos, total, Efectivo/QR, Cobrar y Vaciar ticket.

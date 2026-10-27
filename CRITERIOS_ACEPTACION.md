@@ -28,7 +28,7 @@ Fuente: `Historias_Usuario_SCRUM_GOZO_2.xlsx`, hoja principal. Se incluyen los *
 | HU-06 · CA 3 | Las ventas ya registradas deben conservar el producto en su detalle. | Productos / Reportes | Consultar ventas previas y comprobar que el detalle no cambia. |
 | HU-07 · CA 1 | El dueño debe poder crear una promoción con un nombre y descripción. | Promociones / Nueva venta | Crear promoción con nombre y descripción obligatorios. |
 | HU-07 · CA 2 | Debe poder asociarse a uno o varios productos. | Promociones / Nueva venta | Seleccionar varios productos con Ctrl+clic. |
-| HU-07 · CA 3 | Debe poder definirse un porcentaje o monto de descuento. | Promociones / Nueva venta | Probar 10% y Bs 3 por unidad. |
+| HU-07 · CA 3 | Debe poder definirse un porcentaje o monto de descuento. | Promociones / Nueva venta | Probar 10% y Bs 3 sobre el total de la venta, con varios productos y cuota por cliente. |
 | HU-07 · CA 4 | Debe poder definirse una fecha de inicio y fin para la promoción. | Promociones / Nueva venta | Probar fechas válidas y rango invertido; verificar fuera de vigencia. |
 | HU-07 · CA 5 | El sistema debe aplicar automáticamente el descuento al momento de la venta. | Promociones / Nueva venta | Vender con promoción y ver descuento en carrito y venta guardada. |
 | HU-07 · CA 6 | El sistema debe mostrar las promociones activas. | Promociones / Nueva venta | Ver estado Activa/Programada/Vencida/Desactivada en el listado. |
