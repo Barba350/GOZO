@@ -100,3 +100,10 @@ Las promociones se aplican una sola vez al subtotal completo de la venta, con un
 Las ventas guardadas consumen un uso. Los pedidos pendientes con promoción reservan un uso, cancelar libera la reserva y entregar conserva un solo uso sin duplicarlo. Se serializa el cálculo y guardado por cliente para evitar que dos cajas superen la cuota. Las cotizaciones no consumen usos; al guardar se recalcula y se rechaza una confirmación con total desactualizado.
 
 La migración aditiva 002 conserva precios y descuentos históricos e incorpora los usos antiguos identificables por el nombre de promoción almacenado en el detalle. Si una promoción antigua cambió de nombre, esa asociación histórica puede no reconstruirse automáticamente. No se identifican compras anónimas por nombre o celular: se exige CI para nuevas promociones. Las asociaciones antiguas a productos se conservan como historial hasta editar la promoción, pero dejan de restringir los nuevos descuentos globales.
+
+
+## Ajuste vigente: descuento por unidad y selección de todos los clientes
+
+El descuento vuelve a calcularse por unidad de los productos elegidos; MONTO se descuenta por cada unidad y PORCENTAJE se redondea al centavo por unidad. Se elige la mejor promoción elegible para cada producto, sin acumular dos promociones en la misma unidad. Los productos no seleccionados mantienen su precio (vacío = todos). El límite por cliente y promoción se mantiene: una compra con varias unidades consume un solo uso de cada promoción aplicada. Los usos anteriores y las reservas de pedidos continúan vigentes. No se recalculan ventas ni pedidos ya guardados.
+
+El formulario permite Seleccionar todos los clientes mediante una casilla, con casillas individuales y estado parcial. Todos incluye también clientes registrados posteriormente; al desmarcar algunos se guarda una lista específica. Si se desmarcan todos, el formulario exige elegir al menos uno o volver a marcar Todos.

@@ -32,8 +32,10 @@ public class OrderService(IOrderRepository orders, ISaleService pricing, ISaleRe
         var order = new GozoOrder { RequestId = requestId, CreatedAt = Now(), ContactName = name, ContactPhone = input.ContactPhone, Notes = notes, CustomerId = input.CustomerId, Subtotal = quote.Subtotal, Discount = quote.Discount, Total = quote.Total,
             Lines = quote.Lines.Select(x => new OrderLine { ProductId = x.ProductId, Name = x.Name, UnitPrice = x.UnitPrice, Quantity = x.Quantity, Discount = x.Discount, Total = x.Total, Promotion = x.Promotion }).ToList() };
         orders.Add(order); await unit.Save();
-        if (quote.AppliedPromotionId.HasValue && order.CustomerId.HasValue) {
-            promotions.Use(quote.AppliedPromotionId.Value, order.CustomerId.Value, null, order.Id); await unit.Save();
+        if (order.CustomerId.HasValue) {
+            foreach (var promotionId in quote.AppliedPromotionIds.Distinct())
+                promotions.Use(promotionId, order.CustomerId.Value, null, order.Id);
+            await unit.Save();
         }
         await tx.Commit(); return View(order);
     }

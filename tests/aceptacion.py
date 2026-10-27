@@ -117,7 +117,7 @@ with tempfile.TemporaryDirectory(prefix='gozo-qa-') as folder:
         # Editar relaciones conservadas y cambiar porcentaje a monto por unidad.
         promo['type']='MONTO';promo['value']=3
         call('/promociones/'+str(pr['id']),'PUT',promo)
-        assert call('/ventas/cotizar','POST',sale([{'productId':p['id'],'quantity':2}],c['id']))['total']==2100
+        assert call('/ventas/cotizar','POST',sale([{'productId':p['id'],'quantity':2}],c['id']))['total']==1800
         promo['value']=999
         call('/promociones/'+str(pr['id']),'PUT',promo)
         assert call('/ventas/cotizar','POST',sale([{'productId':p['id'],'quantity':1}],c['id']))['total']==0
@@ -264,22 +264,22 @@ with tempfile.TemporaryDirectory(prefix='gozo-qa-') as folder:
         assert len(call('/categorias'))==10
         assert len(call('/pedidos?estado=ENTREGADO'))==2
         assert len(call('/pedidos?estado=CANCELADO'))==1
-        # Promociones sobre el total, cuota por CI y reservas de pedidos.
+        # Promociones por unidad, cuota por compra/CI y reservas de pedidos.
         pa=call('/productos','POST',{'name':'Promo total A','price':10,'categoryId':cats[0]['id']},201)
         pb=call('/productos','POST',{'name':'Promo total B','price':5,'categoryId':cats[2]['id']},201)
         basket=[{'productId':pa['id'],'quantity':2},{'productId':pb['id'],'quantity':1}]
-        global_promo={'name':'Descuento global QA','description':'Sobre toda la venta','type':'MONTO','value':3,'start':(now-dt.timedelta(days=1)).isoformat(),'end':(now+dt.timedelta(days=1)).isoformat(),'active':True,'productIds':[],'customerIds':[],'maxPurchasesPerCustomer':1}
+        global_promo={'name':'Descuento por unidad QA','description':'Por unidad con límite de compras','type':'MONTO','value':3,'start':(now-dt.timedelta(days=1)).isoformat(),'end':(now+dt.timedelta(days=1)).isoformat(),'active':True,'productIds':[],'customerIds':[],'maxPurchasesPerCustomer':1}
         call('/promociones','POST',{**global_promo,'maxPurchasesPerCustomer':0},400)
         global_saved=call('/promociones','POST',global_promo)
         assert global_saved['maxPurchasesPerCustomer']==1
         assert call('/ventas/cotizar','POST',sale(basket))['discount']==0
-        assert call('/ventas/cotizar','POST',sale(basket,c['id']))['discount']==300
-        assert call('/ventas/cotizar','POST',sale([{'productId':pa['id'],'quantity':2}],c['id']))['discount']==300
-        purchase=call('/ventas','POST',sale(basket,c['id']));assert purchase['total']==2200
-        assert sum(x['discount'] for x in purchase['lines'])==300
-        assert sum(x['total'] for x in purchase['lines'])==2200
+        assert call('/ventas/cotizar','POST',sale(basket,c['id']))['discount']==900
+        assert call('/ventas/cotizar','POST',sale([{'productId':pa['id'],'quantity':2}],c['id']))['discount']==600
+        purchase=call('/ventas','POST',sale(basket,c['id']));assert purchase['total']==1600
+        assert sum(x['discount'] for x in purchase['lines'])==900
+        assert sum(x['total'] for x in purchase['lines'])==1600
         assert call('/ventas/cotizar','POST',sale(basket,c['id']))['discount']==0
-        assert call('/ventas/cotizar','POST',sale(basket,c2['id']))['discount']==300 # Homónimos con CI distinto.
+        assert call('/ventas/cotizar','POST',sale(basket,c2['id']))['discount']==900 # Homónimos con CI distinto.
         global_promo['type']='PORCENTAJE';global_promo['value']=10;global_promo['maxPurchasesPerCustomer']=2
         call('/promociones/'+str(global_saved['id']),'PUT',global_promo)
         assert call('/ventas/cotizar','POST',sale(basket,c['id']))['discount']==250
@@ -305,6 +305,23 @@ with tempfile.TemporaryDirectory(prefix='gozo-qa-') as folder:
         assert discounts==[0,250],discounts
         # La cuota continúa consumida después de guardar y las ventas previas no se recalculan.
         assert call('/ventas/cotizar','POST',sale(basket,c3['id']))['discount']==0
+        # Varias promociones por producto: cada una consume un uso por compra.
+        c4=call('/clientes','POST',{'name':'Varias promociones','ci':'8889991','contact':'71234569'},201)
+        scoped_a={**global_promo,'name':'Por unidad A','type':'MONTO','value':2,'productIds':[pa['id']],'customerIds':[c4['id']]}
+        scoped_b={**global_promo,'name':'Por unidad B','type':'MONTO','value':1,'productIds':[pb['id']],'customerIds':[c4['id']]}
+        promo_a=call('/promociones','POST',scoped_a);promo_b=call('/promociones','POST',scoped_b)
+        q=call('/ventas/cotizar','POST',sale(basket,c4['id']))
+        assert q['discount']==500 and set(q['appliedPromotionIds'])=={promo_a['id'],promo_b['id']}
+        call('/ventas','POST',sale(basket,c4['id']))
+        assert call('/ventas/cotizar','POST',sale(basket,c4['id']))['discount']==250 # Solo queda la promoción general.
+        c5=call('/clientes','POST',{'name':'Reserva múltiple','ci':'8889992','contact':'71234560'},201)
+        scoped_a['customerIds']=[c4['id'],c5['id']];scoped_b['customerIds']=[c4['id'],c5['id']]
+        call('/promociones/'+str(promo_a['id']),'PUT',scoped_a);call('/promociones/'+str(promo_b['id']),'PUT',scoped_b)
+        multi_input={'contactName':c5['name'],'contactPhone':c5['contact'],'customerId':c5['id'],'notes':'Dos promociones','items':basket,'requestId':str(uuid.uuid4()),'expectedTotal':2000}
+        multi=call('/pedidos','POST',multi_input);assert multi['discount']==500
+        assert call('/ventas/cotizar','POST',sale(basket,c5['id']))['discount']==250
+        call('/pedidos/'+str(multi['id'])+'/cancelar','POST')
+        assert call('/ventas/cotizar','POST',sale(basket,c5['id']))['discount']==500
         if os.environ.get('GOZO_DB_PROVIDER', 'SQLite') == 'SQLite':
             # Regresión: formulario CSRF con cookies Secure detrás de terminación TLS.
             process.terminate();process.wait(timeout=15)

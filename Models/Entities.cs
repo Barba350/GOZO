@@ -29,7 +29,7 @@ public class Sale
     public long Discount { get; set; }
     public long Total { get; set; }
     [System.ComponentModel.DataAnnotations.Schema.NotMapped]
-    public int? AppliedPromotionId { get; set; }
+    public List<int> AppliedPromotionIds { get; set; } = new();
     [System.ComponentModel.DataAnnotations.Schema.NotMapped]
     public string PromotionNotice { get; set; } = "";
     public List<SaleLine> Lines { get; set; } = new();

@@ -13,8 +13,10 @@ public class SaleService(ISaleRepository repository, ICatalogRepository catalog,
         if (input.ExpectedTotal != null && input.ExpectedTotal != sale.Total) throw new RuleException("El precio o descuento cambió. Cierra esta confirmación y actualiza el carrito antes de cobrar.");
         sale.RequestId = input.RequestId!;
         repository.Add(sale); await unit.Save();
-        if (sale.AppliedPromotionId.HasValue && sale.CustomerId.HasValue) {
-            promotions.Use(sale.AppliedPromotionId.Value, sale.CustomerId.Value, sale.Id, null); await unit.Save();
+        if (sale.CustomerId.HasValue) {
+            foreach (var promotionId in sale.AppliedPromotionIds.Distinct())
+                promotions.Use(promotionId, sale.CustomerId.Value, sale.Id, null);
+            await unit.Save();
         }
         await tx.Commit();
         if (sale.CustomerId.HasValue) sale.Customer = await customers.Find(sale.CustomerId.Value);
@@ -32,29 +34,26 @@ public class SaleService(ISaleRepository repository, ICatalogRepository catalog,
             sale.Lines.Add(new SaleLine { ProductId = p.Id, Name = p.Name, UnitPrice = p.Price, Quantity = qty, Total = p.Price * qty });
         }
         sale.Subtotal = sale.Lines.Sum(x => x.UnitPrice * x.Quantity);
-        // Una sola promoción sobre el TOTAL; requiere cliente con CI para limitar su uso.
+        // Descuento por unidad en los productos elegibles; cuota por compra y cliente con CI.
         if (i.CustomerId.HasValue) {
             var uses = await promotions.Uses(i.CustomerId.Value);
-            Promotion? best = null; long discount = 0;
-            foreach (var promo in activePromotions.Where(x => (x.Customers.Count == 0 || x.Customers.Any(z => z.CustomerId == i.CustomerId)) && uses.GetValueOrDefault(x.Id) < x.MaxPurchasesPerCustomer)) {
-                var candidate = promo.Type == "PORCENTAJE" ? (long)decimal.Round(sale.Subtotal * promo.Value / 100m, 0, MidpointRounding.AwayFromZero) : Cents(promo.Value);
-                candidate = Math.Min(candidate, sale.Subtotal);
-                if (candidate > discount) { discount = candidate; best = promo; }
-            }
-            if (best == null && activePromotions.Any(x => (x.Customers.Count == 0 || x.Customers.Any(z => z.CustomerId == i.CustomerId)) && uses.GetValueOrDefault(x.Id) >= x.MaxPurchasesPerCustomer))
-                sale.PromotionNotice = "Este cliente ya alcanzó el límite de compras con descuento de las promociones disponibles, o tiene usos reservados en pedidos pendientes.";
-            if (best != null && discount > 0) {
-                sale.AppliedPromotionId = best.Id;
-                sale.PromotionNotice = best.Name + ": descuento sobre el total de la venta.";
-                // Reparto proporcional en centavos para que detalle, PDF y total siempre coincidan.
-                long allocated = 0, accumulated = 0;
-                foreach (var line in sale.Lines) {
-                    accumulated += line.UnitPrice * line.Quantity;
-                    long target = (long)decimal.Floor((decimal)discount * accumulated / sale.Subtotal);
-                    line.Discount = target - allocated; allocated = target;
-                    line.Total -= line.Discount; line.Promotion = best.Name;
+            var customerPromotions = activePromotions.Where(x => x.Customers.Count == 0 || x.Customers.Any(z => z.CustomerId == i.CustomerId)).ToList();
+            foreach (var line in sale.Lines) {
+                Promotion? best = null; long discount = 0;
+                foreach (var promo in customerPromotions.Where(x => (x.Products.Count == 0 || x.Products.Any(z => z.ProductId == line.ProductId)) && uses.GetValueOrDefault(x.Id) < x.MaxPurchasesPerCustomer)) {
+                    var perUnit = promo.Type == "PORCENTAJE" ? (long)decimal.Round(line.UnitPrice * promo.Value / 100m, 0, MidpointRounding.AwayFromZero) : Cents(promo.Value);
+                    var candidate = Math.Min(perUnit, line.UnitPrice) * line.Quantity;
+                    if (candidate > discount) { discount = candidate; best = promo; }
+                }
+                if (best != null && discount > 0) {
+                    line.Discount = discount; line.Total -= discount; line.Promotion = best.Name;
+                    if (!sale.AppliedPromotionIds.Contains(best.Id)) sale.AppliedPromotionIds.Add(best.Id);
                 }
             }
+            if (sale.AppliedPromotionIds.Count > 0)
+                sale.PromotionNotice = "Descuento por unidad. Cada promoción utilizada consume una compra de su límite por cliente, aunque incluya varias unidades.";
+            else if (customerPromotions.Any(x => (x.Products.Count == 0 || x.Products.Any(z => sale.Lines.Any(l => l.ProductId == z.ProductId))) && uses.GetValueOrDefault(x.Id) >= x.MaxPurchasesPerCustomer))
+                sale.PromotionNotice = "Este cliente ya alcanzó el límite de compras con descuento, o tiene usos reservados en pedidos pendientes.";
         }
         sale.Discount = sale.Lines.Sum(x => x.Discount); sale.Total = sale.Subtotal - sale.Discount; return sale;
     }

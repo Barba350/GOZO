@@ -1,6 +1,6 @@
 using static GOZO.Rules;
 namespace GOZO;
-public class PromotionService(IPromotionRepository repository, ICustomerRepository customersRepository, IUnitOfWork unit) : IPromotionService
+public class PromotionService(IPromotionRepository repository, ICatalogRepository catalog, ICustomerRepository customersRepository, IUnitOfWork unit) : IPromotionService
 {
     public Task<List<Promotion>> List(bool active) => repository.List(active, Now());
     public async Task<Promotion> Create(PromotionInput input) {
@@ -19,7 +19,8 @@ public class PromotionService(IPromotionRepository repository, ICustomerReposito
         if (i.Value <= 0 || i.Value > (i.Type == "PORCENTAJE" ? 100 : 1000000) || decimal.Round(i.Value, 2) != i.Value) throw new RuleException("Valor de descuento inválido.");
         if (i.Start == default || i.End == default) throw new RuleException("Las fechas de inicio y fin son obligatorias.");
         if (i.Start > i.End) throw new RuleException("La fecha inicial debe ser anterior a la final.");
-        var products = new List<int>(); var customers = (i.CustomerIds ?? new()).Distinct().ToList();
+        var products = (i.ProductIds ?? new()).Distinct().ToList(); var customers = (i.CustomerIds ?? new()).Distinct().ToList();
+        if (products.Count > 0 && await catalog.CountActive(products) != products.Count) throw new RuleException("Productos inválidos o retirados.");
         if (i.MaxPurchasesPerCustomer is < 1 or > 999) throw new RuleException("Límite por cliente: entre 1 y 999 compras.");
         if (await customersRepository.Count(customers) != customers.Count) throw new RuleException("Clientes inválidos.");
         p.Rule ??= new PromotionRule(); p.Rule.MaxPurchasesPerCustomer = i.MaxPurchasesPerCustomer;

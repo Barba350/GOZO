@@ -41,7 +41,7 @@ El servidor aplica los permisos incluso si se manipula el menú o se llama direc
 - Baja lógica: las ventas conservan nombre y precio históricos. Dinero almacenado en centavos enteros.
 - Venta con detalle guardada en transacción; el servidor calcula precios y descuentos, exige efectivo o QR y evita duplicar reintentos con identificador de operación. Si cambió el total después de revisar, exige recalcular antes de cobrar.
 - QR registra el método de cobro; no genera un QR bancario ni procesa transferencias.
-- Promociones por porcentaje o monto sobre el total de la venta, con vigencia y límite de compras por cliente con CI. Se aplica una sola promoción, sin acumular, y el total mínimo es cero.
+- Promociones por porcentaje o monto por unidad, con productos elegibles y límite de compras por cliente con CI. Se aplica la mejor promoción por producto y el total mínimo es cero.
 - Fechas de negocio en Bolivia (UTC−4). Filtros por hoy, semana desde lunes, mes o rango personalizado, incluyendo todo el último día.
 - Reportes netos de descuentos. Efectivo + QR coincide con ingresos. Exportaciones corresponden al último reporte generado.
 - Ticket: búsqueda de cliente con CI visible, cantidades, descuentos, total, Efectivo/QR, Cobrar y Vaciar ticket.
@@ -116,3 +116,10 @@ Las promociones se aplican una sola vez al subtotal completo de la venta, con un
 Las ventas guardadas consumen un uso. Los pedidos pendientes con promoción reservan un uso, cancelar libera la reserva y entregar conserva un solo uso sin duplicarlo. Se serializa el cálculo y guardado por cliente para evitar que dos cajas superen la cuota. Las cotizaciones no consumen usos; al guardar se recalcula y se rechaza una confirmación con total desactualizado.
 
 La migración aditiva 002 conserva precios y descuentos históricos e incorpora los usos antiguos identificables por el nombre de promoción almacenado en el detalle. Si una promoción antigua cambió de nombre, esa asociación histórica puede no reconstruirse automáticamente. No se identifican compras anónimas por nombre o celular: se exige CI para nuevas promociones. Las asociaciones antiguas a productos se conservan como historial hasta editar la promoción, pero dejan de restringir los nuevos descuentos globales.
+
+
+## Ajuste vigente: descuento por unidad y selección de todos los clientes
+
+El descuento vuelve a calcularse por unidad de los productos elegidos; MONTO se descuenta por cada unidad y PORCENTAJE se redondea al centavo por unidad. Se elige la mejor promoción elegible para cada producto, sin acumular dos promociones en la misma unidad. Los productos no seleccionados mantienen su precio (vacío = todos). El límite por cliente y promoción se mantiene: una compra con varias unidades consume un solo uso de cada promoción aplicada. Los usos anteriores y las reservas de pedidos continúan vigentes. No se recalculan ventas ni pedidos ya guardados.
+
+El formulario permite Seleccionar todos los clientes mediante una casilla, con casillas individuales y estado parcial. Todos incluye también clientes registrados posteriormente; al desmarcar algunos se guarda una lista específica. Si se desmarcan todos, el formulario exige elegir al menos uno o volver a marcar Todos.

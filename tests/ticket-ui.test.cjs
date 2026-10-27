@@ -17,5 +17,13 @@ const click=dataset=>handlers.click({target:{closest:()=>({dataset,matches:()=>f
  await click({remove:'1'});assert.equal(run('cart.length'),0);assert.match(node('#totals').innerHTML,/Bs 0.00/);assert.equal(node('#checkout').disabled,true);
  await click({add:'1'});await click({action:'clear-ticket'});assert.equal(run('cart.length'),0);assert.equal(run('customerId'),'');assert.equal(run('payment'),'');assert.equal(node('#checkout').disabled,true);
  await run("api('/productos/1','DELETE')");assert.equal(lastRequest.headers['X-CSRF-TOKEN'],'qa-csrf','DELETE sin cuerpo debe incluir CSRF');
+ // Seleccionar todos, desmarcar y estado parcial de clientes de una promoción.
+ const master=node('#promotion-all-customers'),clientChecks=[{checked:false},{checked:false}];
+ context.document.querySelectorAll=selector=>selector==='#editor input[name="customers"]'?clientChecks:[];
+ run('bindPromotionCustomerSelection()');
+ master.checked=true;master.onchange();assert.ok(clientChecks.every(c=>c.checked));
+ clientChecks[0].checked=false;clientChecks[0].onchange();assert.equal(master.checked,false);assert.equal(master.indeterminate,true);
+ master.checked=false;master.onchange();assert.ok(clientChecks.every(c=>!c.checked));assert.equal(master.indeterminate,false);
+ clientChecks.forEach(c=>{c.checked=true;c.onchange();});assert.equal(master.checked,true);assert.equal(master.indeterminate,false);
  console.log('OK: ticket vacío, total cero, carrito, pago obligatorio, búsqueda CI, selección de homónimos y vaciar ticket.');
 })().catch(error=>{console.error(error);process.exitCode=1;});
