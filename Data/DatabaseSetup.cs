@@ -27,6 +27,7 @@ public static class DatabaseSetup
             await sales.Database.EnsureCreatedAsync();
             await accounts.Database.EnsureCreatedAsync();
             await UpgradeOrders(sales);
+            await UpgradeSalePromotions(sales);
             return;
         }
         // Dos contextos en una base: EnsureCreated por sí solo omite el segundo.
@@ -47,6 +48,7 @@ public static class DatabaseSetup
                 }
             }
             await UpgradeOrders(sales);
+            await UpgradeSalePromotions(sales);
         } finally {
             await using var release = new NpgsqlCommand("SELECT pg_advisory_unlock(72401683)", connection);
             await release.ExecuteNonQueryAsync();
@@ -56,6 +58,25 @@ public static class DatabaseSetup
         var dialect = db.Database.IsNpgsql() ? "postgresql" : "sqlite";
         using var resource = typeof(DatabaseSetup).Assembly.GetManifestResourceStream($"GOZO.Data.Migrations.001_orders.{dialect}.sql")
             ?? throw new InvalidOperationException("Falta la migración de pedidos.");
+        using var reader = new StreamReader(resource);
+        var sql = await reader.ReadToEndAsync();
+        await using var transaction = await db.Database.BeginTransactionAsync();
+        await db.Database.ExecuteSqlRawAsync(sql);
+        await transaction.CommitAsync();
+    }
+
+    private static async Task UpgradeSalePromotions(GozoDb db) {
+        var connection = db.Database.GetDbConnection();
+        var wasClosed = connection.State != System.Data.ConnectionState.Open;
+        if (wasClosed) await connection.OpenAsync();
+        try {
+            await using var check = connection.CreateCommand();
+            check.CommandText = "SELECT COUNT(*) FROM \"GozoSchemaVersions\" WHERE \"Version\"='002-sale-promotions'";
+            if (Convert.ToInt64(await check.ExecuteScalarAsync()) != 0) return;
+        } finally { if (wasClosed) await connection.CloseAsync(); }
+        var dialect = db.Database.IsNpgsql() ? "postgresql" : "sqlite";
+        using var resource = typeof(DatabaseSetup).Assembly.GetManifestResourceStream($"GOZO.Data.Migrations.002_sale_promotions.{dialect}.sql")
+            ?? throw new InvalidOperationException("Falta la migración de promociones por venta.");
         using var reader = new StreamReader(resource);
         var sql = await reader.ReadToEndAsync();
         await using var transaction = await db.Database.BeginTransactionAsync();

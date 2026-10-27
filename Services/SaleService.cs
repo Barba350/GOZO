@@ -8,10 +8,15 @@ public class SaleService(ISaleRepository repository, ICatalogRepository catalog,
         var existing = await repository.FindByRequest(input.RequestId!);
         if (existing != null) return View(existing);
         if (input.Payment != "EFECTIVO" && input.Payment != "QR") throw new RuleException("Selecciona Efectivo o QR.");
+        await unit.LockCustomer(input.CustomerId);
         var sale = await Quote(input);
         if (input.ExpectedTotal != null && input.ExpectedTotal != sale.Total) throw new RuleException("El precio o descuento cambió. Cierra esta confirmación y actualiza el carrito antes de cobrar.");
         sale.RequestId = input.RequestId!;
-        repository.Add(sale); await unit.Save(); await tx.Commit();
+        repository.Add(sale); await unit.Save();
+        if (sale.AppliedPromotionId.HasValue && sale.CustomerId.HasValue) {
+            promotions.Use(sale.AppliedPromotionId.Value, sale.CustomerId.Value, sale.Id, null); await unit.Save();
+        }
+        await tx.Commit();
         if (sale.CustomerId.HasValue) sale.Customer = await customers.Find(sale.CustomerId.Value);
         return View(sale);
     }
@@ -24,15 +29,30 @@ public class SaleService(ISaleRepository repository, ICatalogRepository catalog,
         foreach (var group in i.Items.GroupBy(x => x.ProductId)) {
             var qty = group.Sum(x => x.Quantity); if (qty > 999) throw new RuleException("Máximo 999 unidades por producto.");
             var p = await catalog.FindActive(group.Key) ?? throw new RuleException("Un producto ya no está disponible. Actualiza el catálogo.");
-            long best = 0; string name = "";
-            foreach (var promo in activePromotions.Where(x => x.Products.Any(z => z.ProductId == p.Id) && (x.Customers.Count == 0 || x.Customers.Any(z => z.CustomerId == i.CustomerId)))) {
-                // MONTO es descuento por unidad. Se usa solo la mejor promoción, sin acumular.
-                long off = promo.Type == "PORCENTAJE" ? (long)decimal.Round(p.Price * qty * promo.Value / 100m, 0, MidpointRounding.AwayFromZero) : Cents(promo.Value) * qty;
-                off = Math.Min(off, p.Price * qty);
-                if (off > best) { best = off; name = promo.Name; }
-            }
-            sale.Lines.Add(new SaleLine { ProductId = p.Id, Name = p.Name, UnitPrice = p.Price, Quantity = qty, Discount = best, Total = p.Price * qty - best, Promotion = name });
+            sale.Lines.Add(new SaleLine { ProductId = p.Id, Name = p.Name, UnitPrice = p.Price, Quantity = qty, Total = p.Price * qty });
         }
-        sale.Subtotal = sale.Lines.Sum(x => x.UnitPrice * x.Quantity); sale.Discount = sale.Lines.Sum(x => x.Discount); sale.Total = sale.Subtotal - sale.Discount; return sale;
+        sale.Subtotal = sale.Lines.Sum(x => x.UnitPrice * x.Quantity);
+        // Una sola promoción sobre el TOTAL; requiere cliente con CI para limitar su uso.
+        if (i.CustomerId.HasValue) {
+            var uses = await promotions.Uses(i.CustomerId.Value);
+            Promotion? best = null; long discount = 0;
+            foreach (var promo in activePromotions.Where(x => (x.Customers.Count == 0 || x.Customers.Any(z => z.CustomerId == i.CustomerId)) && uses.GetValueOrDefault(x.Id) < x.MaxPurchasesPerCustomer)) {
+                var candidate = promo.Type == "PORCENTAJE" ? (long)decimal.Round(sale.Subtotal * promo.Value / 100m, 0, MidpointRounding.AwayFromZero) : Cents(promo.Value);
+                candidate = Math.Min(candidate, sale.Subtotal);
+                if (candidate > discount) { discount = candidate; best = promo; }
+            }
+            if (best != null && discount > 0) {
+                sale.AppliedPromotionId = best.Id;
+                // Reparto proporcional en centavos para que detalle, PDF y total siempre coincidan.
+                long allocated = 0, accumulated = 0;
+                foreach (var line in sale.Lines) {
+                    accumulated += line.UnitPrice * line.Quantity;
+                    long target = (long)decimal.Floor((decimal)discount * accumulated / sale.Subtotal);
+                    line.Discount = target - allocated; allocated = target;
+                    line.Total -= line.Discount; line.Promotion = best.Name;
+                }
+            }
+        }
+        sale.Discount = sale.Lines.Sum(x => x.Discount); sale.Total = sale.Subtotal - sale.Discount; return sale;
     }
 }

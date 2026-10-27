@@ -24,6 +24,8 @@ public interface IPromotionRepository
     Task<List<Promotion>> List(bool active, DateTime now);
     Task<Promotion?> Find(int id);
     void Add(Promotion promotion);
+    Task<Dictionary<int, int>> Uses(int customerId);
+    void Use(int promotionId, int customerId, int? saleId, int? orderId);
 }
 public interface ISaleRepository
 {
@@ -32,4 +34,4 @@ public interface ISaleRepository
     void Add(Sale sale);
 }
 public interface ITransaction : IAsyncDisposable { Task Commit(); }
-public interface IUnitOfWork { Task Save(); Task<ITransaction> BeginTransaction(); }
+public interface IUnitOfWork { Task Save(); Task<ITransaction> BeginTransaction(); Task LockCustomer(int? customerId); }

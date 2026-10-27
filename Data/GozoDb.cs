@@ -33,6 +33,17 @@ public class GozoDb(DbContextOptions<GozoDb> options) : DbContext(options)
             order.Property(x => x.CreatedAt).HasColumnType("timestamp without time zone");
             order.Property(x => x.ClosedAt).HasColumnType("timestamp without time zone");
         }
+        b.Entity<Promotion>().HasOne(x => x.Rule).WithOne().HasForeignKey<PromotionRule>(x => x.PromotionId).OnDelete(DeleteBehavior.Cascade);
+        b.Entity<PromotionRule>().ToTable("PromotionRules").HasKey(x => x.PromotionId);
+        var use = b.Entity<PromotionUse>();
+        use.ToTable("PromotionUses");
+        use.HasOne<Promotion>().WithMany().HasForeignKey(x => x.PromotionId).OnDelete(DeleteBehavior.Restrict);
+        use.HasOne<Customer>().WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.Restrict);
+        use.HasOne<Sale>().WithMany().HasForeignKey(x => x.SaleId).OnDelete(DeleteBehavior.Restrict);
+        use.HasOne(x => x.Order).WithMany().HasForeignKey(x => x.OrderId).OnDelete(DeleteBehavior.Restrict);
+        use.HasIndex(x => new { x.PromotionId, x.SaleId }).IsUnique();
+        use.HasIndex(x => new { x.PromotionId, x.OrderId }).IsUnique();
+        use.HasIndex(x => new { x.CustomerId, x.PromotionId });
         b.Entity<Product>().HasIndex(x => new { x.Key, x.CategoryId }).IsUnique();
         b.Entity<Product>().HasOne<Category>().WithMany().HasForeignKey(x => x.CategoryId).OnDelete(DeleteBehavior.Restrict);
         b.Entity<Customer>().HasIndex(x => x.Ci).IsUnique();

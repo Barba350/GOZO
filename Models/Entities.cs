@@ -28,6 +28,8 @@ public class Sale
     public long Subtotal { get; set; }
     public long Discount { get; set; }
     public long Total { get; set; }
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public int? AppliedPromotionId { get; set; }
     public List<SaleLine> Lines { get; set; } = new();
 }
 public class SaleLine
@@ -53,6 +55,9 @@ public class Promotion
     public DateTime Start { get; set; }
     public DateTime End { get; set; }
     public bool Active { get; set; } = true;
+    public PromotionRule? Rule { get; set; }
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public int MaxPurchasesPerCustomer => Rule?.MaxPurchasesPerCustomer ?? 1;
     public List<PromotionProduct> Products { get; set; } = new();
     public List<PromotionCustomer> Customers { get; set; } = new();
 }
