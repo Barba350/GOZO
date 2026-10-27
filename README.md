@@ -123,3 +123,10 @@ La migración aditiva 002 conserva precios y descuentos históricos e incorpora 
 El descuento vuelve a calcularse por unidad de los productos elegidos; MONTO se descuenta por cada unidad y PORCENTAJE se redondea al centavo por unidad. Se elige la mejor promoción elegible para cada producto, sin acumular dos promociones en la misma unidad. Los productos no seleccionados mantienen su precio (vacío = todos). El límite por cliente y promoción se mantiene: una compra con varias unidades consume un solo uso de cada promoción aplicada. Los usos anteriores y las reservas de pedidos continúan vigentes. No se recalculan ventas ni pedidos ya guardados.
 
 El formulario permite Seleccionar todos los clientes mediante una casilla, con casillas individuales y estado parcial. Todos incluye también clientes registrados posteriormente; al desmarcar algunos se guarda una lista específica. Si se desmarcan todos, el formulario exige elegir al menos uno o volver a marcar Todos.
+
+
+## Fotos de productos
+
+El dueño puede elegir una foto opcional al crear o editar un producto, reemplazarla o quitarla. El navegador admite JPG, PNG y WebP hasta 10 MB y prepara una copia JPEG de hasta 800×800 píxeles y 40 KB, sin conservar metadatos del original. El servidor comprueba el tamaño, la estructura JPEG y las dimensiones; no acepta SVG, HTML, rutas de archivos ni URLs externas. Las fotos se almacenan en ProductImages dentro de SQLite o PostgreSQL, no en el disco temporal del hosting. La migración 003 es aditiva.
+
+Ventas y Productos muestran la foto; si falta o falla se usa el icono de la categoría. El listado devuelve solo la versión de imagen, nunca sus bytes. La descarga requiere sesión; cajeros pueden ver fotos y solo el dueño puede cambiarlas. Las fotos usan caché privada y una URL por versión; las páginas y datos de clientes conservan su política sin caché. Guardar el producto y su foto es una sola operación de base de datos.

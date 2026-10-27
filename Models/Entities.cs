@@ -9,6 +9,10 @@ public class Product
     public long Price { get; set; } // Centavos: evita errores de coma flotante.
     public int CategoryId { get; set; }
     public bool Active { get; set; } = true;
+    [System.Text.Json.Serialization.JsonIgnore]
+    public ProductImage? Image { get; set; }
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public string? ImageVersion { get; set; }
 }
 public class Customer
 {

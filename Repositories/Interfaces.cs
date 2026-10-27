@@ -8,6 +8,7 @@ public interface ICatalogRepository
     Task<bool> CategoryExists(int id);
     Task<int> CountActive(List<int> ids);
     Task<List<Category>> Categories();
+    Task<ProductImage?> Image(int id);
     void Add(Product product);
 }
 public interface ICustomerRepository

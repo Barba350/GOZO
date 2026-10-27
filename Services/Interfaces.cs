@@ -5,6 +5,7 @@ public interface IProductService
     Task<Product> Create(ProductInput input);
     Task<Product> Update(int id, ProductInput input);
     Task Delete(int id);
+    Task<ProductImage?> Image(int id);
 }
 public interface ICustomerService { Task<List<Customer>> Search(string? search); Task<Customer> Create(CustomerInput input); }
 public interface ICategoryService { Task<List<Category>> List(); }

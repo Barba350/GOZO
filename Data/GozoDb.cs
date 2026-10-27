@@ -44,6 +44,8 @@ public class GozoDb(DbContextOptions<GozoDb> options) : DbContext(options)
         use.HasIndex(x => new { x.PromotionId, x.SaleId }).IsUnique();
         use.HasIndex(x => new { x.PromotionId, x.OrderId }).IsUnique();
         use.HasIndex(x => new { x.CustomerId, x.PromotionId });
+        b.Entity<ProductImage>().ToTable("ProductImages").HasKey(x => x.ProductId);
+        b.Entity<Product>().HasOne(x => x.Image).WithOne().HasForeignKey<ProductImage>(x => x.ProductId).OnDelete(DeleteBehavior.Cascade);
         b.Entity<Product>().HasIndex(x => new { x.Key, x.CategoryId }).IsUnique();
         b.Entity<Product>().HasOne<Category>().WithMany().HasForeignKey(x => x.CategoryId).OnDelete(DeleteBehavior.Restrict);
         b.Entity<Customer>().HasIndex(x => x.Ci).IsUnique();

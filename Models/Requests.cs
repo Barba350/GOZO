@@ -1,6 +1,6 @@
 namespace GOZO;
 
-public record ProductInput(string Name, decimal Price, int CategoryId);
+public record ProductInput(string Name, decimal Price, int CategoryId, string? ImageBase64 = null, bool RemoveImage = false);
 public record CustomerInput(string Name, string Ci, string Contact);
 public record CartItem(int ProductId, int Quantity);
 public record SaleInput(int? CustomerId, string Payment, List<CartItem> Items, string? RequestId, long? ExpectedTotal = null);

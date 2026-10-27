@@ -3,6 +3,7 @@ const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/st
 const nodes=new Map(),handlers={};let lastRequest;
 const node=s=>{if(!nodes.has(s))nodes.set(s,{content:'qa-csrf',innerHTML:'',value:'',textContent:'',disabled:false,hidden:false,dataset:{},style:{},classList:{toggle(){},add(){},remove(){}},setAttribute(){},addEventListener(){},insertAdjacentHTML(position,html){this.innerHTML+=html;}});return nodes.get(s);};
 const context=vm.createContext({console,Intl,Date,URLSearchParams,setTimeout,crypto:require('node:crypto').webcrypto,confirm:()=>true,location:{pathname:'/Ventas'},history:{pushState(){}},window:{addEventListener(){}},document:{body:{dataset:{page:'venta'}},querySelector:node,querySelectorAll:()=>[],addEventListener:(name,handler)=>handlers[name]=handler},fetch:async(url,options)=>{lastRequest=options;return {ok:true,status:200,json:async()=>({subtotal:1000,discount:0,total:1000,lines:[{productId:1,promotion:''}]})};}});
+vm.runInContext(fs.readFileSync(require('node:path').join(__dirname,'../wwwroot/product-photos.js'),'utf8'),context);
 let source=fs.readFileSync(require('node:path').join(__dirname,'../wwwroot/app.js'),'utf8');
 source=source.slice(0,source.indexOf("$('#today').textContent="));vm.runInContext(source,context);
 const run=s=>vm.runInContext(s,context);
@@ -25,5 +26,9 @@ const click=dataset=>handlers.click({target:{closest:()=>({dataset,matches:()=>f
  clientChecks[0].checked=false;clientChecks[0].onchange();assert.equal(master.checked,false);assert.equal(master.indeterminate,true);
  master.checked=false;master.onchange();assert.ok(clientChecks.every(c=>!c.checked));assert.equal(master.indeterminate,false);
  clientChecks.forEach(c=>{c.checked=true;c.onchange();});assert.equal(master.checked,true);assert.equal(master.indeterminate,false);
+ assert.match(run("productPhotoMarkup({id:7,name:'Foto real',categoryId:1,imageVersion:'abc'})"),/\/api\/productos\/7\/imagen\?v=abc/);
+ assert.doesNotMatch(run("productPhotoMarkup({id:7,name:'Sin foto',categoryId:1})"),/<img/);
+ await assert.rejects(()=>run("optimizeProductPhoto({type:'image/svg+xml',size:10})"),/JPG, PNG o WebP/);
+ await assert.rejects(()=>run("optimizeProductPhoto({type:'image/jpeg',size:11000000})"),/10 MB/);
  console.log('OK: ticket vacío, total cero, carrito, pago obligatorio, búsqueda CI, selección de homónimos y vaciar ticket.');
 })().catch(error=>{console.error(error);process.exitCode=1;});
