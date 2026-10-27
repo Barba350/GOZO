@@ -41,8 +41,11 @@ public class SaleService(ISaleRepository repository, ICatalogRepository catalog,
                 candidate = Math.Min(candidate, sale.Subtotal);
                 if (candidate > discount) { discount = candidate; best = promo; }
             }
+            if (best == null && activePromotions.Any(x => (x.Customers.Count == 0 || x.Customers.Any(z => z.CustomerId == i.CustomerId)) && uses.GetValueOrDefault(x.Id) >= x.MaxPurchasesPerCustomer))
+                sale.PromotionNotice = "Este cliente ya alcanzó el límite de compras con descuento de las promociones disponibles, o tiene usos reservados en pedidos pendientes.";
             if (best != null && discount > 0) {
                 sale.AppliedPromotionId = best.Id;
+                sale.PromotionNotice = best.Name + ": descuento sobre el total de la venta.";
                 // Reparto proporcional en centavos para que detalle, PDF y total siempre coincidan.
                 long allocated = 0, accumulated = 0;
                 foreach (var line in sale.Lines) {

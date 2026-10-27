@@ -30,6 +30,8 @@ public class Sale
     public long Total { get; set; }
     [System.ComponentModel.DataAnnotations.Schema.NotMapped]
     public int? AppliedPromotionId { get; set; }
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public string PromotionNotice { get; set; } = "";
     public List<SaleLine> Lines { get; set; } = new();
 }
 public class SaleLine
