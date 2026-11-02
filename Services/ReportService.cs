@@ -1,8 +1,12 @@
 using static GOZO.Rules;
 namespace GOZO;
-public class ReportService(ISaleRepository repository, ICustomerRepository customers) : IReportService
+public class ReportService(ISaleRepository repository, ICustomerRepository customers, OperationsRepository operations, IAccountRepository accounts) : IReportService
 {
-    public async Task<object> Generate(string? from, string? to) => Report(await Sales(from, to, null));
+    public async Task<object> Options()=>new {branches=await operations.Branches(),sellers=(await accounts.List()).Select(x=>new{x.Id,name=x.Username})};
+    public async Task<object> Generate(string? from, string? to) {
+        var sales=await Sales(from,to,null);
+        return Report(sales,await operations.ReportClosures(Parse(from,Now().Date),Parse(to,Now().Date).AddDays(1)));
+    }
     public async Task<object> History(int id, string? from, string? to) {
         var customer = await customers.Find(id) ?? throw new RuleException("Cliente inexistente.");
         return new { customer, report = Report(await Sales(from, to, id)) };

@@ -23,6 +23,19 @@ public class Customer
 }
 public class Sale
 {
+    public int? BranchId { get; set; }
+    [System.Text.Json.Serialization.JsonIgnore] public Branch? Branch { get; set; }
+    public int? CashSessionId { get; set; }
+    public int? CreatedById { get; set; }
+    public string CreatedBy { get; set; } = "";
+    public string Revision { get; set; } = Guid.NewGuid().ToString();
+    public int? CouponProductId { get; set; }
+    public int CouponQuantity { get; set; }
+    public int? CouponId { get; set; }
+    public string CouponCode { get; set; } = "";
+    public string CouponType { get; set; } = "";
+    public decimal CouponValue { get; set; }
+
     public int Id { get; set; }
     public DateTime Date { get; set; }
     public int? CustomerId { get; set; }

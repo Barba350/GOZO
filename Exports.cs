@@ -18,13 +18,13 @@ public static class Exports
         summary.Cell(7, 1).Value = "QR"; summary.Cell(7, 2).Value = sales.Where(x => x.Payment == "QR").Sum(x => x.Total) / 100m;
         summary.Range("B4:B7").Style.NumberFormat.Format = "0.00";
         var sheet = wb.Worksheets.Add("Ventas");
-        string[] headers = { "Venta", "Fecha (Bolivia)", "Cliente", "CI", "Forma de pago", "Subtotal Bs", "Descuento Bs", "Total Bs" };
+        string[] headers = { "Venta", "Fecha (Bolivia)", "Cliente", "CI", "Forma de pago", "Subtotal Bs", "Descuento Bs", "Total Bs", "Sucursal", "Cajero", "Caja" };
         for (var c = 0; c < headers.Length; c++) sheet.Cell(1, c + 1).Value = headers[c];
         var row = 2;
         foreach (var s in sales) {
             sheet.Cell(row, 1).Value = s.Id; sheet.Cell(row, 2).Value = s.Date; sheet.Cell(row, 2).Style.DateFormat.Format = "yyyy-mm-dd hh:mm";
             sheet.Cell(row, 3).Value = s.Customer?.Name ?? "Consumidor final"; sheet.Cell(row, 4).Value = s.Customer?.Ci ?? "";
-            sheet.Cell(row, 5).Value = s.Payment; sheet.Cell(row, 6).Value = s.Subtotal / 100m; sheet.Cell(row, 7).Value = s.Discount / 100m; sheet.Cell(row, 8).Value = s.Total / 100m; row++;
+            sheet.Cell(row, 5).Value = s.Payment; sheet.Cell(row, 6).Value = s.Subtotal / 100m; sheet.Cell(row, 7).Value = s.Discount / 100m; sheet.Cell(row, 8).Value = s.Total / 100m; sheet.Cell(row,9).Value=s.Branch?.Name??"Sin registro (histórica)";sheet.Cell(row,10).Value=string.IsNullOrWhiteSpace(s.CreatedBy)?"Sin registro (histórica)":s.CreatedBy;sheet.Cell(row,11).Value=s.CashSessionId?.ToString()??"Sin registro";row++;
         }
         if (row > 2) sheet.Range(2, 6, row - 1, 8).Style.NumberFormat.Format = "0.00";
         var detail = wb.Worksheets.Add("Detalle");
@@ -59,6 +59,7 @@ public static class Exports
         lines.Add(""); lines.Add("HISTORIAL Y DETALLE");
         foreach (var s in sales) {
             lines.Add($"Venta #{s.Id} | {s.Date:yyyy-MM-dd HH:mm} | {s.Payment} | Bs {Money(s.Total)}");
+            lines.Add($"Sucursal: {s.Branch?.Name??"Sin registro (historica)"} | Cajero: {(string.IsNullOrWhiteSpace(s.CreatedBy)?"Sin registro (historica)":s.CreatedBy)} | Caja: {s.CashSessionId?.ToString()??"-"}");
             lines.Add($"Cliente: {s.Customer?.Name ?? "Consumidor final"} | CI: {s.Customer?.Ci ?? "-"}");
             foreach (var l in s.Lines) lines.Add($"  {l.Quantity} x {l.Name} | P/U {Money(l.UnitPrice)} | Desc. {Money(l.Discount)} | Bs {Money(l.Total)}");
             lines.Add("");

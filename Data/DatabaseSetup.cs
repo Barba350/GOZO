@@ -7,28 +7,26 @@ public static class DatabaseSetup
     public static bool UsesPostgres(IConfiguration config) =>
         string.Equals(config["GOZO_DB_PROVIDER"], "PostgreSQL", StringComparison.OrdinalIgnoreCase);
 
-    public static void Configure(DbContextOptionsBuilder options, IConfiguration config, string sqliteFile) {
-        var provider = config["GOZO_DB_PROVIDER"] ?? "SQLite";
-        if (UsesPostgres(config)) {
-            var connection = config["GOZO_POSTGRES_CONNECTION"];
-            if (string.IsNullOrWhiteSpace(connection)) throw new InvalidOperationException("Falta el secreto GOZO_POSTGRES_CONNECTION.");
-            var settings = new NpgsqlConnectionStringBuilder(connection);
-            if (settings.SslMode != SslMode.VerifyFull && !(config["GOZO_ALLOW_TEST_DATABASE"] == "true" && config["DOTNET_ENVIRONMENT"] == "Development"))
-                throw new InvalidOperationException("PostgreSQL requiere SSL Mode=VerifyFull para verificar el servidor.");
-            settings.IncludeErrorDetail = false;
-            options.UseNpgsql(settings.ConnectionString);
-        } else if (string.Equals(provider, "SQLite", StringComparison.OrdinalIgnoreCase)) {
-            options.UseSqlite(new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder { DataSource = sqliteFile }.ConnectionString);
-        } else throw new InvalidOperationException("GOZO_DB_PROVIDER debe ser SQLite o PostgreSQL.");
+    public static void Configure(DbContextOptionsBuilder options, IConfiguration config) {
+        var provider = config["GOZO_DB_PROVIDER"] ?? "SQLServer";
+        if(UsesPostgres(config)) {
+            var connection=config["GOZO_POSTGRES_CONNECTION"]??throw new InvalidOperationException("Falta GOZO_POSTGRES_CONNECTION.");
+            var settings=new NpgsqlConnectionStringBuilder(connection);
+            if(settings.SslMode!=SslMode.VerifyFull && !(config["GOZO_ALLOW_TEST_DATABASE"]=="true"&&config["DOTNET_ENVIRONMENT"]=="Development")) throw new InvalidOperationException("PostgreSQL requiere SSL Mode=VerifyFull.");
+            settings.IncludeErrorDetail=false;options.UseNpgsql(settings.ConnectionString);
+        } else if(provider.Equals("SQLServer",StringComparison.OrdinalIgnoreCase)) {
+            var connection=config["GOZO_SQLSERVER_CONNECTION"]??config.GetConnectionString("Gozo");
+            if(string.IsNullOrWhiteSpace(connection))throw new InvalidOperationException("Configura SQL Server local o GOZO_DB_PROVIDER=PostgreSQL para Neon.");
+            var settings=new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(connection);
+            var test=config["GOZO_ALLOW_TEST_DATABASE"]=="true"&&(config["ASPNETCORE_ENVIRONMENT"]=="Development"||config["DOTNET_ENVIRONMENT"]=="Development");
+            if(!test&&(settings.TrustServerCertificate||settings.Encrypt==Microsoft.Data.SqlClient.SqlConnectionEncryptOption.Optional))throw new InvalidOperationException("Configura Encrypt=True;TrustServerCertificate=False.");
+            options.UseSqlServer(settings.ConnectionString,s=>s.UseCompatibilityLevel(150));
+        } else throw new InvalidOperationException("Solo se admiten SQLServer y PostgreSQL.");
     }
 
     public static async Task Initialize(GozoDb sales, AccountsDb accounts) {
-        if (!sales.Database.IsNpgsql()) {
-            await sales.Database.EnsureCreatedAsync();
-            await accounts.Database.EnsureCreatedAsync();
-            await UpgradeOrders(sales);
-            await UpgradeSalePromotions(sales);
-            await UpgradeProductImages(sales);
+        if (sales.Database.IsSqlServer()) {
+            await SqlServerSetup.Initialize(sales,accounts);
             return;
         }
         // Dos contextos en una base: EnsureCreated por sí solo omite el segundo.
@@ -51,6 +49,7 @@ public static class DatabaseSetup
             await UpgradeOrders(sales);
             await UpgradeSalePromotions(sales);
             await UpgradeProductImages(sales);
+            await UpgradeOperations(sales);
         } finally {
             await using var release = new NpgsqlCommand("SELECT pg_advisory_unlock(72401683)", connection);
             await release.ExecuteNonQueryAsync();
@@ -95,6 +94,14 @@ public static class DatabaseSetup
         await using var transaction = await db.Database.BeginTransactionAsync();
         await db.Database.ExecuteSqlRawAsync(sql);
         await transaction.CommitAsync();
+    }
+
+    private static async Task UpgradeOperations(GozoDb db) {
+        using var resource=typeof(DatabaseSetup).Assembly.GetManifestResourceStream("GOZO.Data.Migrations.004_operations.postgresql.sql")??throw new InvalidOperationException("Falta migración de sucursales y caja.");
+        using var reader=new StreamReader(resource);
+        await using var tx=await db.Database.BeginTransactionAsync();
+        await db.Database.ExecuteSqlRawAsync(await reader.ReadToEndAsync());
+        await tx.CommitAsync();
     }
 
 }

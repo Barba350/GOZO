@@ -33,17 +33,25 @@ jobs:
           node-version: '22'
       - run: dotnet restore
       - run: dotnet build --configuration Release --no-restore
-      - run: node --check wwwroot/app.js && node --check wwwroot/interactions.js && node --check wwwroot/orders.js && node --check wwwroot/product-photos.js
+      - run: node --check wwwroot/app.js && node --check wwwroot/interactions.js && node --check wwwroot/orders.js && node --check wwwroot/product-photos.js && node --check wwwroot/cash-workspace.js && node --check wwwroot/owner-report.js
       - run: node tests/ticket-ui.test.cjs
-      - run: python tests/aceptacion.py
+      - run: node tests/operations-ui.test.cjs
       - run: pip install "psycopg[binary]>=3.2,<4"
-      - name: PostgreSQL integration (disposable database)
+      - name: Business and security integration
         run: python tests/aceptacion.py
         env:
           GOZO_DB_PROVIDER: PostgreSQL
           GOZO_POSTGRES_CONNECTION: Host=localhost;Database=gozo_test;Username=gozo_test;Password=local_ci_only;SSL Mode=Disable
           GOZO_ALLOW_TEST_DATABASE: 'true'
           GOZO_TEST_PG_DSN: postgresql://gozo_test:local_ci_only@localhost/gozo_test
+      - name: Create second disposable test database
+        run: python -c "import psycopg; c=psycopg.connect('postgresql://gozo_test:local_ci_only@localhost/gozo_test',autocommit=True); c.execute('CREATE DATABASE gozo_cash_test'); c.close()"
+      - name: Cashier ownership, reconciliation and dashboard
+        run: python tests/cashier_integration.py
+        env:
+          GOZO_DB_PROVIDER: PostgreSQL
+          GOZO_POSTGRES_CONNECTION: Host=localhost;Database=gozo_cash_test;Username=gozo_test;Password=local_ci_only;SSL Mode=Disable
+          GOZO_ALLOW_TEST_DATABASE: 'true'
       - run: python tests/dependency-audit.py
       - name: Database and secret exclusions
         run: python tests/repository-safety.py

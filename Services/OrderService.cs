@@ -8,7 +8,7 @@ public interface IOrderService
     Task<OrderView> Deliver(int id, DeliverOrderInput input);
     Task<OrderView> Cancel(int id);
 }
-public class OrderService(IOrderRepository orders, ISaleService pricing, ISaleRepository sales, IUnitOfWork unit, IPromotionRepository promotions) : IOrderService
+public class OrderService(IOrderRepository orders, ISaleService pricing, ISaleRepository sales, IUnitOfWork unit, IPromotionRepository promotions, CouponService coupons, OperationsService operations, OperationsRepository ops, BranchContext branch) : IOrderService
 {
     private static OrderView View(GozoOrder o) => new(o.Id, o.Status, o.CreatedAt, o.ClosedAt, o.ContactName, o.ContactPhone, o.Notes, o.CustomerId, o.Subtotal, o.Discount, o.Total, o.SaleId, o.Sale?.Payment, o.Lines.OrderBy(x => x.Id).Select(x => new OrderLineView(x.ProductId, x.Name, x.UnitPrice, x.Quantity, x.Discount, x.Total, x.Promotion)).ToList());
     public async Task<List<OrderView>> List(string? status) {
@@ -22,14 +22,16 @@ public class OrderService(IOrderRepository orders, ISaleService pricing, ISaleRe
         await using var tx = await unit.BeginTransaction();
         var existing = await orders.FindByRequest(requestId);
         if (existing != null) return View(existing);
+        if(!await ops.ValidBranch()) throw new RuleException("Sucursal inválida.");
         var name = Text(input.ContactName, "Nombre de quien recibe", 120);
         if (input.ContactPhone == null || !Regex.IsMatch(input.ContactPhone, @"^[0-9]{8}$")) throw new RuleException("Escribe un celular de 8 dígitos.");
         var notes = (input.Notes ?? "").Trim();
         if (notes.Length > 1000) throw new RuleException("Las notas admiten hasta 1000 caracteres.");
         await unit.LockCustomer(input.CustomerId);
-        var quote = await pricing.Quote(new(input.CustomerId, "", input.Items, null));
+        await coupons.Lock(input.CouponCode);
+        var quote = await pricing.Quote(new(input.CustomerId, "", input.Items, null, null, input.CouponCode));
         if (input.ExpectedTotal != null && input.ExpectedTotal != quote.Total) throw new RuleException("El precio cambió. Actualiza el resumen antes de guardar el pedido.");
-        var order = new GozoOrder { RequestId = requestId, CreatedAt = Now(), ContactName = name, ContactPhone = input.ContactPhone, Notes = notes, CustomerId = input.CustomerId, Subtotal = quote.Subtotal, Discount = quote.Discount, Total = quote.Total,
+        var order = new GozoOrder { BranchId=branch.Id, CouponProductId=quote.CouponProductId,CouponQuantity=quote.CouponQuantity,CouponId=quote.CouponId, CouponCode=quote.CouponCode, CouponType=quote.CouponType, CouponValue=quote.CouponValue, RequestId = requestId, CreatedAt = Now(), ContactName = name, ContactPhone = input.ContactPhone, Notes = notes, CustomerId = input.CustomerId, Subtotal = quote.Subtotal, Discount = quote.Discount, Total = quote.Total,
             Lines = quote.Lines.Select(x => new OrderLine { ProductId = x.ProductId, Name = x.Name, UnitPrice = x.UnitPrice, Quantity = x.Quantity, Discount = x.Discount, Total = x.Total, Promotion = x.Promotion }).ToList() };
         orders.Add(order); await unit.Save();
         if (order.CustomerId.HasValue) {
@@ -37,6 +39,7 @@ public class OrderService(IOrderRepository orders, ISaleService pricing, ISaleRe
                 promotions.Use(promotionId, order.CustomerId.Value, null, order.Id);
             await unit.Save();
         }
+        await coupons.Reserve(quote, null, order.Id);
         await tx.Commit(); return View(order);
     }
     public async Task<OrderView> Deliver(int id, DeliverOrderInput input) {
@@ -44,12 +47,15 @@ public class OrderService(IOrderRepository orders, ISaleService pricing, ISaleRe
         var order = await orders.Find(id) ?? throw new RuleException("Pedido inexistente.");
         if (order.Status == "ENTREGADO") return View(order);
         if (order.Status != "PENDIENTE") throw new RuleException("Un pedido cancelado no puede entregarse.");
-        if (input.Payment is not ("EFECTIVO" or "QR")) throw new RuleException("Selecciona Efectivo o QR al entregar.");
+        var payment=order.Total==0&&order.CouponId.HasValue?"CANJE":input.Payment;
+        if (payment is not ("EFECTIVO" or "QR" or "CANJE") || (payment=="CANJE" && (order.Total!=0||!order.CouponId.HasValue))) throw new RuleException("Selecciona Efectivo o QR al entregar.");
         await unit.LockCustomer(order.CustomerId);
+        var cash=await operations.RequireCash();
+        order.BranchId??=branch.Id;
         // La revisión detecta entregas/cancelaciones concurrentes. Todo se confirma en una transacción.
         order.Status = "ENTREGADO"; order.ClosedAt = Now(); order.Revision = Guid.NewGuid().ToString();
         await unit.Save();
-        var sale = new Sale { Date = order.ClosedAt.Value, RequestId = order.SaleRequestId, CustomerId = order.CustomerId, Payment = input.Payment, Subtotal = order.Subtotal, Discount = order.Discount, Total = order.Total,
+        var sale = new Sale { CreatedById=branch.ActorId, CreatedBy=branch.Actor, BranchId=branch.Id, CashSessionId=cash.Id, CouponProductId=order.CouponProductId,CouponQuantity=order.CouponQuantity,CouponId=order.CouponId, CouponCode=order.CouponCode, CouponType=order.CouponType, CouponValue=order.CouponValue, Date = order.ClosedAt.Value, RequestId = order.SaleRequestId, CustomerId = order.CustomerId, Payment = payment, Subtotal = order.Subtotal, Discount = order.Discount, Total = order.Total,
             Lines = order.Lines.Select(x => new SaleLine { ProductId = x.ProductId, Name = x.Name, UnitPrice = x.UnitPrice, Quantity = x.Quantity, Discount = x.Discount, Total = x.Total, Promotion = x.Promotion }).ToList() };
         sales.Add(sale); order.Sale = sale;
         await unit.Save(); await tx.Commit(); return View(order);
@@ -60,6 +66,10 @@ public class OrderService(IOrderRepository orders, ISaleService pricing, ISaleRe
         if (order.Status == "CANCELADO") return View(order);
         if (order.Status != "PENDIENTE") throw new RuleException("Un pedido entregado ya tiene una venta y no puede cancelarse aquí.");
         await unit.LockCustomer(order.CustomerId);
+        if(order.CouponId.HasValue) {
+            await coupons.Lock(order.CouponCode);
+            foreach(var use in await ops.RedemptionsForOrder(order.Id)) use.Released=true;
+        }
         order.Status = "CANCELADO"; order.ClosedAt = Now(); order.Revision = Guid.NewGuid().ToString();
         await unit.Save(); await tx.Commit(); return View(order);
     }

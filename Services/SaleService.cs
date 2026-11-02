@@ -1,15 +1,19 @@
 using static GOZO.Rules;
 namespace GOZO;
-public class SaleService(ISaleRepository repository, ICatalogRepository catalog, ICustomerRepository customers, IPromotionRepository promotions, IUnitOfWork unit) : ISaleService
+public class SaleService(ISaleRepository repository, ICatalogRepository catalog, ICustomerRepository customers, IPromotionRepository promotions, IUnitOfWork unit, OperationsService operations, CouponService coupons, BranchContext branch) : ISaleService
 {
     public async Task<object> Create(SaleInput input) {
         if (!Guid.TryParse(input.RequestId, out _)) throw new RuleException("Falta identificador de operación. Actualiza la página.");
         await using var tx = await unit.BeginTransaction();
         var existing = await repository.FindByRequest(input.RequestId!);
-        if (existing != null) return View(existing);
-        if (input.Payment != "EFECTIVO" && input.Payment != "QR") throw new RuleException("Selecciona Efectivo o QR.");
+        if (existing != null) { if(existing.BranchId!=branch.Id) throw new RuleException("La operación pertenece a otra sucursal."); return View(existing); }
         await unit.LockCustomer(input.CustomerId);
+        await coupons.Lock(input.CouponCode);
+        var cash = await operations.RequireCash();
         var sale = await Quote(input);
+        if(sale.Total==0&&sale.CouponId.HasValue)sale.Payment="CANJE";
+        else if(input.Payment is not ("EFECTIVO" or "QR"))throw new RuleException("Selecciona Efectivo o QR.");
+        sale.BranchId=branch.Id; sale.CashSessionId=cash.Id; sale.CreatedById=branch.ActorId; sale.CreatedBy=branch.Actor;
         if (input.ExpectedTotal != null && input.ExpectedTotal != sale.Total) throw new RuleException("El precio o descuento cambió. Cierra esta confirmación y actualiza el carrito antes de cobrar.");
         sale.RequestId = input.RequestId!;
         repository.Add(sale); await unit.Save();
@@ -18,6 +22,7 @@ public class SaleService(ISaleRepository repository, ICatalogRepository catalog,
                 promotions.Use(promotionId, sale.CustomerId.Value, sale.Id, null);
             await unit.Save();
         }
+        await coupons.Reserve(sale, sale.Id, null);
         await tx.Commit();
         if (sale.CustomerId.HasValue) sale.Customer = await customers.Find(sale.CustomerId.Value);
         return View(sale);
@@ -35,7 +40,7 @@ public class SaleService(ISaleRepository repository, ICatalogRepository catalog,
         }
         sale.Subtotal = sale.Lines.Sum(x => x.UnitPrice * x.Quantity);
         // Descuento por unidad en los productos elegibles; cuota por compra y cliente con CI.
-        if (i.CustomerId.HasValue) {
+        if (i.CustomerId.HasValue && string.IsNullOrWhiteSpace(i.CouponCode)) {
             var uses = await promotions.Uses(i.CustomerId.Value);
             var customerPromotions = activePromotions.Where(x => x.Customers.Count == 0 || x.Customers.Any(z => z.CustomerId == i.CustomerId)).ToList();
             foreach (var line in sale.Lines) {
@@ -55,6 +60,7 @@ public class SaleService(ISaleRepository repository, ICatalogRepository catalog,
             else if (customerPromotions.Any(x => (x.Products.Count == 0 || x.Products.Any(z => sale.Lines.Any(l => l.ProductId == z.ProductId))) && uses.GetValueOrDefault(x.Id) >= x.MaxPurchasesPerCustomer))
                 sale.PromotionNotice = "Este cliente ya alcanzó el límite de compras con descuento, o tiene usos reservados en pedidos pendientes.";
         }
-        sale.Discount = sale.Lines.Sum(x => x.Discount); sale.Total = sale.Subtotal - sale.Discount; return sale;
+        sale.Discount = sale.Lines.Sum(x => x.Discount); sale.Total = sale.Subtotal - sale.Discount;
+        await coupons.Apply(sale, i.CouponCode); return sale;
     }
 }

@@ -6,6 +6,7 @@ namespace GOZO;
 [Authorize(Policy = "Reportes")]
 public class ReportesApiController(IReportService service) : ControllerBase
 {
+    [HttpGet("opciones")] public async Task<IActionResult> Options()=>Ok(await service.Options());
     [HttpGet] public async Task<IActionResult> Generate([FromQuery] string? desde, [FromQuery] string? hasta) => Ok(await service.Generate(desde, hasta));
     [Authorize(Policy = "Dueno")]
     [HttpGet("/api/clientes/{id:int}/historial")] public async Task<IActionResult> History(int id, [FromQuery] string? desde, [FromQuery] string? hasta) => Ok(await service.History(id, desde, hasta));

@@ -15,7 +15,7 @@ public class CuentaController(AccountService accounts) : Controller
         try {
             var account = await accounts.Login(input.Username, input.Password, Ip());
             await HttpContext.SignInAsync("GozoCookie", AccountService.Principal(account), new AuthenticationProperties { IsPersistent = false });
-            return LocalRedirect(account.MustChangePassword ? "/Cuenta/CambiarClave" : Url.IsLocalUrl(input.ReturnUrl) ? input.ReturnUrl! : "/Ventas");
+            return LocalRedirect(account.MustChangePassword ? "/Cuenta/CambiarClave" : Url.IsLocalUrl(input.ReturnUrl) ? input.ReturnUrl! : account.Role=="Cajero"?"/Dashboard":"/Ventas");
         } catch (RuleException e) { ModelState.AddModelError("", e.Message); input.Password = ""; return View(input); }
     }
     [Authorize, HttpPost] public async Task<IActionResult> Salir() {

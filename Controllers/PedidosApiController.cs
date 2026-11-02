@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 namespace GOZO;
-[ApiController, Route("api/pedidos"), Authorize(Policy = "Reportes")]
+[ApiController, Route("api/pedidos"), Authorize(Policy = "Operacion")]
 public class PedidosApiController(IOrderService service) : ControllerBase
 {
     [HttpGet] public async Task<IActionResult> List([FromQuery] string? estado) => Ok(await service.List(estado));

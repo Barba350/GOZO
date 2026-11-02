@@ -12,15 +12,20 @@ if (!Path.IsPathFullyQualified(dataDir)) throw new InvalidOperationException("GO
 Directory.CreateDirectory(dataDir);
 var production = !builder.Environment.IsDevelopment();
 if (production) {
-    if (!DatabaseSetup.UsesPostgres(builder.Configuration) && builder.Configuration["GOZO_PERSISTENT_SQLITE"] != "true") throw new InvalidOperationException("Esta versión usa SQLite. No la publiques en un disco temporal. El alojamiento gratuito requiere adaptar la versión de internet a una base externa; la versión local sigue funcionando sin este ajuste.");
+
     if (!Uri.TryCreate(builder.Configuration["GOZO_PUBLIC_ORIGIN"], UriKind.Absolute, out var origin) || origin.Scheme != "https" || origin.AbsolutePath != "/" || !string.IsNullOrEmpty(origin.Query) || !string.IsNullOrEmpty(origin.Fragment) || !string.IsNullOrEmpty(origin.UserInfo)) throw new InvalidOperationException("Configura GOZO_PUBLIC_ORIGIN con la URL pública HTTPS, sin rutas, usuario ni contraseña.");
     if (builder.Configuration["GOZO_TLS_TERMINATION"] != "Edge") throw new InvalidOperationException("El despliegue requiere un proxy HTTPS administrado. Configura GOZO_TLS_TERMINATION=Edge solo detrás de ese proxy, sin acceso público directo al puerto interno.");
 }
 builder.WebHost.ConfigureKestrel(o => { o.AddServerHeader = false; o.Limits.MaxRequestBodySize = 65536; });
-builder.Services.AddDbContext<GozoDb>(o => DatabaseSetup.Configure(o, builder.Configuration, Path.Combine(dataDir, "gozo.db")));
+builder.Services.AddDbContext<GozoDb>(o => DatabaseSetup.Configure(o, builder.Configuration));
 builder.AddGozoSecurity(dataDir);
 builder.Services.AddControllersWithViews(o => o.Filters.Add(new AutoValidateAntiforgeryTokenAttribute()));
 // Repositorios: acceso a datos. Todos comparten el DbContext de la solicitud.
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<BranchContext>();
+builder.Services.AddScoped<OperationsRepository>();
+builder.Services.AddScoped<OperationsService>();
+builder.Services.AddScoped<CouponService>();
 builder.Services.AddScoped<ICatalogRepository, CatalogRepository>();
 builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
 builder.Services.AddScoped<IPromotionRepository, PromotionRepository>();
@@ -49,6 +54,11 @@ using (var scope = app.Services.CreateScope()) {
     var db = scope.ServiceProvider.GetRequiredService<GozoDb>();
     await DatabaseSetup.Initialize(db, scope.ServiceProvider.GetRequiredService<AccountsDb>());
     await CatalogDefaults.EnsureCategories(db);
+}
+if(args.Contains("--verificar-esquema")) {
+    if(!app.Environment.IsDevelopment()||builder.Configuration["GOZO_ALLOW_TEST_DATABASE"]!="true")throw new InvalidOperationException("Verificación de esquema solo en entorno de pruebas.");
+    using var scope=app.Services.CreateScope();var db=scope.ServiceProvider.GetRequiredService<GozoDb>();
+    Console.WriteLine($"Esquema preparado. Ventas: {await db.Sales.CountAsync()}; total: {await db.Sales.SumAsync(x=>(long?)x.Total)??0}; pedidos: {await db.Orders.CountAsync()}");return;
 }
 await OwnerBootstrap.EnsureOwner(app.Services, builder.Configuration, args.Contains("--crear-dueno"));
 if (args.Contains("--crear-dueno")) return;

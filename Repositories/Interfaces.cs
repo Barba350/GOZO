@@ -35,4 +35,4 @@ public interface ISaleRepository
     void Add(Sale sale);
 }
 public interface ITransaction : IAsyncDisposable { Task Commit(); }
-public interface IUnitOfWork { Task Save(); Task<ITransaction> BeginTransaction(); Task LockCustomer(int? customerId); }
+public interface IUnitOfWork { Task Save(); Task<ITransaction> BeginTransaction(); Task LockCustomer(int? customerId); Task Lock(string resource); }

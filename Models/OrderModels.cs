@@ -1,6 +1,14 @@
 namespace GOZO;
 public class GozoOrder
 {
+    public int? BranchId { get; set; }
+    public int? CouponProductId { get; set; }
+    public int CouponQuantity { get; set; }
+    public int? CouponId { get; set; }
+    public string CouponCode { get; set; } = "";
+    public string CouponType { get; set; } = "";
+    public decimal CouponValue { get; set; }
+
     public int Id { get; set; }
     public string RequestId { get; set; } = "";
     public string SaleRequestId { get; set; } = Guid.NewGuid().ToString();
@@ -31,7 +39,7 @@ public class OrderLine
     public long Total { get; set; }
     public string Promotion { get; set; } = "";
 }
-public record OrderInput(string ContactName, string ContactPhone, string? Notes, int? CustomerId, List<CartItem> Items, string RequestId, long? ExpectedTotal = null);
+public record OrderInput(string ContactName, string ContactPhone, string? Notes, int? CustomerId, List<CartItem> Items, string RequestId, long? ExpectedTotal = null, string? CouponCode = null);
 public record DeliverOrderInput(string Payment);
 public record OrderLineView(int ProductId, string Name, long UnitPrice, int Quantity, long Discount, long Total, string Promotion);
 public record OrderView(int Id, string Status, DateTime CreatedAt, DateTime? ClosedAt, string ContactName, string ContactPhone, string Notes, int? CustomerId, long Subtotal, long Discount, long Total, int? SaleId, string? Payment, List<OrderLineView> Lines);

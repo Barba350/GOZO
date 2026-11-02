@@ -8,8 +8,8 @@ public class AccountsDb(DbContextOptions<AccountsDb> options) : DbContext(option
     public DbSet<Account> Accounts => Set<Account>();
     public DbSet<SecurityEvent> Events => Set<SecurityEvent>();
     protected override void OnModelCreating(ModelBuilder b) {
-        if (Database.IsNpgsql()) b.HasDefaultSchema("gozo_accounts");
-        else b.Ignore<DataProtectionKey>();
+        b.HasDefaultSchema("gozo_accounts");
+        b.Entity<Account>().Property(x=>x.Key).HasMaxLength(80);
         b.Entity<Account>().HasIndex(x => x.Key).IsUnique();
         b.Entity<SecurityEvent>().HasIndex(x => x.Date);
     }

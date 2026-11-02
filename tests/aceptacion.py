@@ -27,11 +27,6 @@ source = pathlib.Path(__file__).resolve().parents[1]
 with tempfile.TemporaryDirectory(prefix='gozo-qa-') as folder:
     project = pathlib.Path(folder)/'GOZO'
     shutil.copytree(source, project, ignore=shutil.ignore_patterns('bin','obj','App_Data','.vs','__pycache__'))
-    if os.environ.get('GOZO_DB_PROVIDER', 'SQLite') == 'SQLite':
-        import sqlite3
-        (project/'App_Data').mkdir(exist_ok=True)
-        legacy=sqlite3.connect(project/'App_Data/gozo.db')
-        legacy.executescript((project/'schema.sql').read_text());legacy.close()
     with socket.socket() as sock:
         sock.bind(('127.0.0.1',0)); port=sock.getsockname()[1]
     base=f'http://127.0.0.1:{port}/api'
@@ -80,6 +75,7 @@ with tempfile.TemporaryDirectory(prefix='gozo-qa-') as folder:
         html=login(owner,' Luis   Heredia ',owner_password);owner_csrf=Tokens(html).token;assert owner_csrf
         assert 'Dueno' in html
         call('/productos','POST',{'name':'No CSRF','price':10,'categoryId':1},400,csrf='')
+        call('/operaciones/caja/abrir','POST',{'openingAmount':100})
         for route,key in [('Ventas','venta'),('Productos','productos'),('Clientes','clientes'),('Promociones','promociones'),('Reportes','reportes'),('Historial','historial'),('Pedidos','pedidos')]:
             html=owner.open(root+'/'+route).read().decode()
             assert f'data-page="{key}"' in html and 'gozo-logo.png' in html,(route,'Vista Razor incompleta')
@@ -177,11 +173,12 @@ with tempfile.TemporaryDirectory(prefix='gozo-qa-') as folder:
         web(cashier,'/Cuenta/CambiarClave',{'CurrentPassword':temp_password,'NewPassword':cashier_password,'ConfirmPassword':cashier_password,'__RequestVerificationToken':token})
         html=login(cashier,'qacashier',cashier_password);cashier_csrf=Tokens(html).token;assert cashier_csrf
         call('/categorias',opener=cashier)
-        assert call('/reportes?desde=2000-01-01&hasta=2100-01-01',opener=cashier)['income']==5860
-        assert call('/reportes/pdf?desde=2000-01-01&hasta=2100-01-01',opener=cashier,raw=True).startswith(b'%PDF-1.4')
-        with zipfile.ZipFile(io.BytesIO(call('/reportes/excel?desde=2000-01-01&hasta=2100-01-01',opener=cashier,raw=True))) as z:assert 'xl/workbook.xml' in z.namelist()
-        report_html=web(cashier,'/Reportes')
-        assert 'data-page="reportes"' in report_html and 'href="/Reportes"' in report_html
+        for path in ['/reportes?desde=2000-01-01&hasta=2100-01-01','/reportes/pdf','/reportes/excel']:
+            call(path,opener=cashier,status=403)
+        web(cashier,'/Reportes',status=403)
+        dashboard=call('/operaciones/dashboard',opener=cashier)
+        assert 'products' in dashboard and 'income' not in dashboard
+        call('/operaciones/caja/abrir','POST',{'openingAmount':50},opener=cashier,csrf=cashier_csrf)
         call(f'/clientes/{c["id"]}/historial',status=403,opener=cashier)
         web(cashier,'/Historial',status=403)
         web(cashier,'/Productos',status=403)

@@ -1,0 +1,32 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const elements=new Map();const element=key=>{if(!elements.has(key))elements.set(key,{innerHTML:'',textContent:'',value:'',open:false,close(){this.open=false;},insertAdjacentHTML(where,html){this.innerHTML=html+this.innerHTML;}});return elements.get(key);};
+let handler,modal='',calls=[];
+const sale={id:7,revision:'original',payment:'EFECTIVO',lines:[{productId:2,name:'Helado',unitPrice:1000,quantity:1}]};
+const ctx=vm.createContext({console,Map,JSON,Number,String,Array,confirm:()=>true,prompt:()=>null,document:{addEventListener(){}},location:{assign(){}},$:(key)=>element(key),esc:v=>String(v??'').replaceAll('<','&lt;').replaceAll('>','&gt;'),money:n=>'Bs '+(Number(n||0)/100).toFixed(2),dateTime:d=>d,options:()=>'<option>Sucursal</option>',isOwner:true,customers:[],products:[{id:2,name:"Helado"}],localDay:()=> '2026-10-31',notice(){},empty:t=>t,closeButton:()=>'<button>Cancelar</button>',formErrors:e=>{throw e;},openModal:html=>{modal=html;},bindForm:f=>{handler=f;},renderReport:async()=>{},api:async(path,method='GET',data)=>{
+ calls.push({path,method,data});
+ if(path==='/operaciones/sucursales')return {current:1,branches:[{id:1,name:'Centro'},{id:2,name:'Mercado'}]};
+ if(path==='/operaciones/caja')return {cash:{id:3,revision:'cash-version',openedBy:'Cajero',openedAt:'hoy',openingAmount:10000,openingDenominations:'[{"Cents":10000,"Count":1}]'},cashSales:2000,qrSales:3000,expected:12000,openBoxes:[],history:[]};
+ if(path==='/operaciones/caja/3')return {cash:{id:3,revision:'cash-version',openedBy:'Cajero',openingAmount:10000},cashSales:2000,qrSales:3000,expected:12000};
+ if(path==='/operaciones/resumen')return [{branchId:1,total:5000,count:2}];
+ if(path==='/operaciones/cupones')return [{id:1,code:'GOZO-001',description:'<script>',type:'MONTO',value:5,active:true,reservedOrUsed:false}];
+ if(path==='/operaciones/ventas/7'&&method==='GET')return sale;
+ return {};
+}});
+vm.runInContext(fs.readFileSync(__dirname+'/../wwwroot/operations.js','utf8'),ctx);
+vm.runInContext(fs.readFileSync(__dirname+'/../wwwroot/cash-workspace.js','utf8'),ctx);
+(async()=>{
+ await vm.runInContext('loadBranch()',ctx);await vm.runInContext('operationsPage()',ctx);
+ let html=element('#content').innerHTML;assert(html.includes('Vendido por QR'));assert(html.includes('Bs 120.00'));assert(element('#coupon-list').innerHTML.includes('&lt;script&gt;'));
+ await vm.runInContext('cashForm(true)',ctx);assert(modal.includes('confirma el cierre'));assert(modal.includes('denom-20000'));assert(modal.includes('denom-10'));
+ const f=new Map([['countedCash','120'],['countedQr','30'],['notes','Conteo correcto']]);await handler(f);
+ let request=calls.find(x=>x.path==='/operaciones/caja/3/cerrar');assert.equal(request.data.revision,'cash-version');assert.equal(request.data.countedCash,120);assert.equal(request.data.countedQr,30);assert.equal(request.data.denominations,null);
+ await vm.runInContext('editSale(7)',ctx);assert(modal.includes('Justificación obligatoria'));assert(modal.includes('line-2'));
+ await handler(new Map([['line-2','3'],['payment','QR'],['reason','Corrección del cliente']]));
+ request=calls.find(x=>x.path==='/operaciones/ventas/7'&&x.method==='PUT');assert.equal(request.data.revision,'original');assert.equal(request.data.items[0].quantity,3);assert.equal(request.data.reason,'Corrección del cliente');
+ vm.runInContext('couponForm()',ctx);assert(modal.includes('Código único'));await handler(new Map([['code','GOZO-NEW'],['description','Regalo'],['type','MONTO'],['value','5'],['customerId','']]));
+ request=calls.find(x=>x.path==='/operaciones/cupones'&&x.method==='POST');assert.equal(request.data.value,5);assert.equal(request.data.customerId,null);
+ vm.runInContext("$('#coupon-type').value='PRODUCTO';$('#coupon-type').onchange();",ctx);assert.equal(element('#coupon-gift').hidden,false);assert.equal(element('#coupon-value').disabled,true);
+ await handler(new Map([['code','REGALO-001'],['description','Helado gratis'],['type','PRODUCTO'],['giftProductId','2'],['giftQuantity','1'],['customerId','']]));
+ request=calls.filter(x=>x.path==='/operaciones/cupones'&&x.method==='POST').at(-1);assert.equal(request.data.giftProductId,2);assert.equal(request.data.giftQuantity,1);assert.equal(request.data.value,0);
+ console.log('PASS: formularios de caja, denominaciones, sucursal, cupones, escape HTML y corrección con justificación/revisión.');
+})().catch(e=>{console.error(e);process.exitCode=1;});

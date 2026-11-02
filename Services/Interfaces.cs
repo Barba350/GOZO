@@ -19,6 +19,7 @@ public interface IPromotionService
 public interface ISaleService { Task<Sale> Quote(SaleInput input); Task<object> Create(SaleInput input); }
 public interface IReportService
 {
+    Task<object> Options();
     Task<object> Generate(string? from, string? to);
     Task<object> History(int id, string? from, string? to);
     Task<byte[]> Excel(string? from, string? to);
