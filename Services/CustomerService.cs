@@ -3,6 +3,7 @@ using static GOZO.Rules;
 namespace GOZO;
 public class CustomerService(ICustomerRepository repository, IUnitOfWork unit) : ICustomerService
 {
+    public async Task<Customer> Default()=>await repository.Default()??throw new RuleException("El cliente predeterminado no está disponible. Comunícate con el dueño.");
     public async Task<List<Customer>> Search(string? search) {
         var list = await repository.List(); var key = Key(search ?? ""); var ci = Ci(search ?? "");
         return list.Where(x => key == "" || Key(x.Name).Contains(key) || Key(x.Contact).Contains(key) || (ci != "" && x.Ci.Contains(ci))).ToList();

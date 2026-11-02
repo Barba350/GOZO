@@ -5,7 +5,7 @@ public class OperationsRepository(GozoDb db, BranchContext branch) {
     public Task<bool> BranchExists(int id) => db.Branches.AnyAsync(x=>x.Id==id&&x.Active);
     public Task<Branch?> Branch(int id) => db.Branches.FirstOrDefaultAsync(x=>x.Id==id);
     public Task<bool> ActiveProductExists(int id) => db.Products.AnyAsync(x=>x.Id==id&&x.Active);
-    public Task<bool> CustomerExists(int id) => db.Customers.AnyAsync(x=>x.Id==id);
+    public Task<bool> CustomerExists(int id) => db.Customers.AnyAsync(x=>x.Id==id&&!x.IsDefault);
     public Task<List<CashSession>> CashHistory() => db.CashSessions.AsNoTracking().Where(x=>x.BranchId==branch.Id&&x.ClosedAt!=null&&(branch.Owner||x.OpenedById==branch.ActorId)).OrderByDescending(x=>x.Id).Take(50).ToListAsync();
     public Task<Coupon?> CouponById(int id) => db.Coupons.FirstOrDefaultAsync(x=>x.Id==id);
     public void AddCash(CashSession cash) => db.CashSessions.Add(cash);
@@ -28,7 +28,7 @@ public class OperationsRepository(GozoDb db, BranchContext branch) {
         var start=Rules.Now().Date.AddDays(-29);var end=Rules.Now().Date.AddDays(1);
         var sales=db.Sales.AsNoTracking().Where(x=>x.BranchId==branch.Id&&x.Date>=start&&x.Date<end);
         var products=await sales.SelectMany(x=>x.Lines).GroupBy(x=>new{x.ProductId,x.Name}).Select(g=>new{productId=g.Key.ProductId,name=g.Key.Name,quantity=g.Sum(x=>x.Quantity)}).OrderByDescending(x=>x.quantity).ThenBy(x=>x.name).Take(5).ToListAsync();
-        var customers=await sales.Where(x=>x.CustomerId!=null).GroupBy(x=>new{x.CustomerId,Name=x.Customer!.Name}).Select(g=>new{customerId=g.Key.CustomerId,name=g.Key.Name,purchases=g.Count()}).OrderByDescending(x=>x.purchases).ThenBy(x=>x.name).Take(5).ToListAsync();
+        var customers=await sales.Where(x=>x.CustomerId!=null&&!x.Customer!.IsDefault).GroupBy(x=>new{x.CustomerId,Name=x.Customer!.Name}).Select(g=>new{customerId=g.Key.CustomerId,name=g.Key.Name,purchases=g.Count()}).OrderByDescending(x=>x.purchases).ThenBy(x=>x.name).Take(5).ToListAsync();
         return new{from=start,to=end.AddDays(-1),branchId=branch.Id,products,customers};
     }
     public Task<CashSession?> OpenCash() => db.CashSessions.FirstOrDefaultAsync(x => x.BranchId == branch.Id && x.ClosedAt == null && x.OpenedById == branch.ActorId);

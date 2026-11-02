@@ -7,7 +7,7 @@ public interface IProductService
     Task Delete(int id);
     Task<ProductImage?> Image(int id);
 }
-public interface ICustomerService { Task<List<Customer>> Search(string? search); Task<Customer> Create(CustomerInput input); }
+public interface ICustomerService { Task<Customer> Default(); Task<List<Customer>> Search(string? search); Task<Customer> Create(CustomerInput input); }
 public interface ICategoryService { Task<List<Category>> List(); }
 public interface IPromotionService
 {

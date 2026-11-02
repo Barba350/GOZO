@@ -9,6 +9,7 @@ public class ReportService(ISaleRepository repository, ICustomerRepository custo
     }
     public async Task<object> History(int id, string? from, string? to) {
         var customer = await customers.Find(id) ?? throw new RuleException("Cliente inexistente.");
+        if(customer.IsDefault)throw new RuleException("Consumidor final agrupa ventas sin identificación; no tiene un historial individual de cliente.");
         return new { customer, report = Report(await Sales(from, to, id)) };
     }
     public async Task<byte[]> Excel(string? from, string? to) => Exports.Excel(await Sales(from, to, null));

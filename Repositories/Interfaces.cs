@@ -13,6 +13,7 @@ public interface ICatalogRepository
 }
 public interface ICustomerRepository
 {
+    Task<Customer?> Default();
     Task<List<Customer>> List();
     Task<Customer?> Find(int id);
     Task<bool> Exists(int id);

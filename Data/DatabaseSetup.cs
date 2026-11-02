@@ -50,6 +50,7 @@ public static class DatabaseSetup
             await UpgradeSalePromotions(sales);
             await UpgradeProductImages(sales);
             await UpgradeOperations(sales);
+            await UpgradeDefaultCustomer(sales);
         } finally {
             await using var release = new NpgsqlCommand("SELECT pg_advisory_unlock(72401683)", connection);
             await release.ExecuteNonQueryAsync();
@@ -102,6 +103,13 @@ public static class DatabaseSetup
         await using var tx=await db.Database.BeginTransactionAsync();
         await db.Database.ExecuteSqlRawAsync(await reader.ReadToEndAsync());
         await tx.CommitAsync();
+    }
+
+    private static async Task UpgradeDefaultCustomer(GozoDb db) {
+        using var resource=typeof(DatabaseSetup).Assembly.GetManifestResourceStream("GOZO.Data.Migrations.005_default_customer.postgresql.sql")??throw new InvalidOperationException("Falta migración de cliente predeterminado.");
+        using var reader=new StreamReader(resource);
+        await using var tx=await db.Database.BeginTransactionAsync();
+        await db.Database.ExecuteSqlRawAsync(await reader.ReadToEndAsync());await tx.CommitAsync();
     }
 
 }

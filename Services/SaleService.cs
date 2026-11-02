@@ -7,6 +7,7 @@ public class SaleService(ISaleRepository repository, ICatalogRepository catalog,
         await using var tx = await unit.BeginTransaction();
         var existing = await repository.FindByRequest(input.RequestId!);
         if (existing != null) { if(existing.BranchId!=branch.Id) throw new RuleException("La operación pertenece a otra sucursal."); return View(existing); }
+        if(!input.CustomerId.HasValue)throw new RuleException("Selecciona un cliente o elige Consumidor final antes de guardar la venta.");
         await unit.LockCustomer(input.CustomerId);
         await coupons.Lock(input.CouponCode);
         var cash = await operations.RequireCash();
@@ -29,7 +30,8 @@ public class SaleService(ISaleRepository repository, ICatalogRepository catalog,
     }
     public async Task<Sale> Quote( SaleInput i) {
         if (i.Items == null || i.Items.Count == 0 || i.Items.Count > 200) throw new RuleException("Agrega entre 1 y 200 productos.");
-        if (i.CustomerId != null && !await customers.Exists(i.CustomerId.Value)) throw new RuleException("Cliente inexistente.");
+        var selectedCustomer=i.CustomerId.HasValue?await customers.Find(i.CustomerId.Value):null;
+        if(i.CustomerId.HasValue&&selectedCustomer==null)throw new RuleException("Cliente inexistente.");
         if (i.Items.Any(x => x.Quantity < 1 || x.Quantity > 999)) throw new RuleException("Cantidad entre 1 y 999.");
         var now = Now(); var activePromotions = await promotions.List(true, now);
         var sale = new Sale { Date = now, CustomerId = i.CustomerId, Payment = i.Payment ?? "" };
@@ -40,7 +42,7 @@ public class SaleService(ISaleRepository repository, ICatalogRepository catalog,
         }
         sale.Subtotal = sale.Lines.Sum(x => x.UnitPrice * x.Quantity);
         // Descuento por unidad en los productos elegibles; cuota por compra y cliente con CI.
-        if (i.CustomerId.HasValue && string.IsNullOrWhiteSpace(i.CouponCode)) {
+        if (i.CustomerId.HasValue && selectedCustomer is { IsDefault:false } && string.IsNullOrWhiteSpace(i.CouponCode)) {
             var uses = await promotions.Uses(i.CustomerId.Value);
             var customerPromotions = activePromotions.Where(x => x.Customers.Count == 0 || x.Customers.Any(z => z.CustomerId == i.CustomerId)).ToList();
             foreach (var line in sale.Lines) {

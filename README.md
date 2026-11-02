@@ -31,3 +31,11 @@ Producción: `GOZO_PUBLIC_ORIGIN=https://dominio`, `GOZO_TLS_TERMINATION=Edge` s
 `dotnet build -c Release`, pruebas Node del ticket/formularios y pruebas HTTP contra PostgreSQL desechable en GitHub Actions. `tests/aceptacion.py` cubre catálogo, clientes, promociones/cuotas, fotos, pedidos, persistencia, seguridad y exportaciones. `tests/cashier_integration.py` cubre propiedad de cajas, efectivo/QR, filtros/reportes de dueño, dashboard, correcciones y canjes. Nunca deben ejecutarse sobre la base real.
 
 La migración se ensaya primero en una rama temporal de Neon. La producción se verifica después del despliegue sin crear ventas de prueba.
+
+## Cliente obligatorio en nuevas ventas
+
+El cajero debe elegir un cliente registrado o pulsar **Usar Consumidor final** antes de guardar. No hay selección automática. Consumidor final es un único registro interno sin CI ni celular, creado idempotentemente por la migración 005. No se inventan datos personales.
+
+Las cotizaciones pueden calcular el carrito antes de elegir, pero guardar sin CustomerId o con un cliente inexistente se rechaza en servidor. Los pedidos pendientes sin cliente exigen seleccionarlo al entregar; se conserva su precio acordado. Históricos sin cliente permanecen intactos.
+
+Consumidor final no aparece como un comprador frecuente ni recibe promociones ligadas al CI; sí puede usar cupones generales válidos de un solo uso. No se ofrece como destinatario de cupones personales ni de promociones específicas. Se excluye del listado de clientes identificados y del historial individual, pero sus ventas sí se ven en los reportes del dueño.

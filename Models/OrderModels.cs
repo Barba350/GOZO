@@ -40,6 +40,6 @@ public class OrderLine
     public string Promotion { get; set; } = "";
 }
 public record OrderInput(string ContactName, string ContactPhone, string? Notes, int? CustomerId, List<CartItem> Items, string RequestId, long? ExpectedTotal = null, string? CouponCode = null);
-public record DeliverOrderInput(string Payment);
+public record DeliverOrderInput(string Payment, int? CustomerId = null);
 public record OrderLineView(int ProductId, string Name, long UnitPrice, int Quantity, long Discount, long Total, string Promotion);
 public record OrderView(int Id, string Status, DateTime CreatedAt, DateTime? ClosedAt, string ContactName, string ContactPhone, string Notes, int? CustomerId, long Subtotal, long Discount, long Total, int? SaleId, string? Payment, List<OrderLineView> Lines);

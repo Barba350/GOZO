@@ -75,6 +75,7 @@ with tempfile.TemporaryDirectory(prefix='gozo-qa-') as folder:
         html=login(owner,' Luis   Heredia ',owner_password);owner_csrf=Tokens(html).token;assert owner_csrf
         assert 'Dueno' in html
         call('/productos','POST',{'name':'No CSRF','price':10,'categoryId':1},400,csrf='')
+        default_customer=call('/clientes/predeterminado');assert default_customer['isDefault'] and default_customer['ci']=='' and default_customer['contact']==''
         call('/operaciones/caja/abrir','POST',{'openingAmount':100})
         for route,key in [('Ventas','venta'),('Productos','productos'),('Clientes','clientes'),('Promociones','promociones'),('Reportes','reportes'),('Historial','historial'),('Pedidos','pedidos')]:
             html=owner.open(root+'/'+route).read().decode()
@@ -95,11 +96,12 @@ with tempfile.TemporaryDirectory(prefix='gozo-qa-') as folder:
         assert len(call('/clientes?buscar=Ana'))==2
         assert len(call('/categorias'))==10
         def sale(items,customer=None,payment='EFECTIVO'):
-            return {'customerId':customer,'payment':payment,'items':items,'requestId':str(uuid.uuid4())}
+            return {'customerId':default_customer['id'] if customer is None else customer,'payment':payment,'items':items,'requestId':str(uuid.uuid4())}
         items=[{'productId':p['id'],'quantity':2},{'productId':p2['id'],'quantity':1}]
         request=sale(items)
+        call('/ventas','POST',{**request,'customerId':None},400)
         request['payment']='';call('/ventas','POST',request,400)
-        request['payment']='EFECTIVO';first=call('/ventas','POST',request);assert first['total']==2500 and first['customerId'] is None
+        request['payment']='EFECTIVO';first=call('/ventas','POST',request);assert first['total']==2500 and first['customerId']==default_customer['id']
         assert call('/ventas','POST',request)['id']==first['id'] # Reintento no duplica.
         call('/productos/'+str(p['id']),'PUT',{'name':'Helado QA nuevo','price':12,'categoryId':cats[0]['id']})
         call('/productos/'+str(p2['id']),'PUT',{'name':'Helado QA nuevo','price':5,'categoryId':cats[0]['id']},400)

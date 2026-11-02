@@ -45,6 +45,7 @@ public class GozoDb(DbContextOptions<GozoDb> options) : DbContext(options)
         b.Entity<Product>().HasIndex(x => new { x.Key, x.CategoryId }).IsUnique();
         b.Entity<Product>().HasOne<Category>().WithMany().HasForeignKey(x => x.CategoryId).OnDelete(DeleteBehavior.Restrict);
         b.Entity<Customer>().HasIndex(x => x.Ci).IsUnique();
+        b.Entity<Customer>().HasIndex(x=>x.IsDefault).IsUnique().HasFilter(Database.IsNpgsql()?"\"IsDefault\"":"[IsDefault] = 1");
         b.Entity<Sale>().HasIndex(x => x.Date);
         b.Entity<Sale>().HasIndex(x => x.RequestId).IsUnique();
         b.Entity<Sale>().HasOne(x => x.Customer).WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.Restrict);

@@ -8,7 +8,7 @@ public interface IOrderService
     Task<OrderView> Deliver(int id, DeliverOrderInput input);
     Task<OrderView> Cancel(int id);
 }
-public class OrderService(IOrderRepository orders, ISaleService pricing, ISaleRepository sales, IUnitOfWork unit, IPromotionRepository promotions, CouponService coupons, OperationsService operations, OperationsRepository ops, BranchContext branch) : IOrderService
+public class OrderService(IOrderRepository orders, ISaleService pricing, ISaleRepository sales, IUnitOfWork unit, IPromotionRepository promotions, CouponService coupons, OperationsService operations, OperationsRepository ops, BranchContext branch, ICustomerRepository customers) : IOrderService
 {
     private static OrderView View(GozoOrder o) => new(o.Id, o.Status, o.CreatedAt, o.ClosedAt, o.ContactName, o.ContactPhone, o.Notes, o.CustomerId, o.Subtotal, o.Discount, o.Total, o.SaleId, o.Sale?.Payment, o.Lines.OrderBy(x => x.Id).Select(x => new OrderLineView(x.ProductId, x.Name, x.UnitPrice, x.Quantity, x.Discount, x.Total, x.Promotion)).ToList());
     public async Task<List<OrderView>> List(string? status) {
@@ -47,6 +47,10 @@ public class OrderService(IOrderRepository orders, ISaleService pricing, ISaleRe
         var order = await orders.Find(id) ?? throw new RuleException("Pedido inexistente.");
         if (order.Status == "ENTREGADO") return View(order);
         if (order.Status != "PENDIENTE") throw new RuleException("Un pedido cancelado no puede entregarse.");
+        if(!order.CustomerId.HasValue) {
+            if(!input.CustomerId.HasValue||!await customers.Exists(input.CustomerId.Value))throw new RuleException("Selecciona un cliente o Consumidor final para entregar y registrar la venta.");
+            order.CustomerId=input.CustomerId;
+        } else if(input.CustomerId.HasValue&&input.CustomerId!=order.CustomerId)throw new RuleException("El pedido ya está vinculado a otro cliente.");
         var payment=order.Total==0&&order.CouponId.HasValue?"CANJE":input.Payment;
         if (payment is not ("EFECTIVO" or "QR" or "CANJE") || (payment=="CANJE" && (order.Total!=0||!order.CouponId.HasValue))) throw new RuleException("Selecciona Efectivo o QR al entregar.");
         await unit.LockCustomer(order.CustomerId);

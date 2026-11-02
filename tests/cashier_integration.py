@@ -64,6 +64,7 @@ with tempfile.TemporaryDirectory(prefix='gozo-cashier-qa-') as temp:
         a.call('/operaciones/caja/abrir','POST',{'openingAmount':-1},400)
         a.call('/operaciones/caja/abrir','POST',{'openingAmount':100.001},400)
         a.call('/operaciones/caja/abrir','POST',{'openingAmount':100,'denominations':[{'cents':1000,'count':1}]},400)
+        default_customer=a.call('/clientes/predeterminado');assert default_customer['isDefault'] and default_customer['ci']==''
         ca=a.call('/operaciones/caja/abrir','POST',{'openingAmount':100})
         cb=b.call('/operaciones/caja/abrir','POST',{'openingAmount':50})
         assert ca['id']!=cb['id'] and ca['openedById']!=cb['openedById']
@@ -105,6 +106,21 @@ with tempfile.TemporaryDirectory(prefix='gozo-cashier-qa-') as temp:
         order.update(requestId=str(uuid.uuid4()),couponCode=None);pending=a.call('/pedidos','POST',order)
         delivered=a.call('/pedidos/'+str(pending['id'])+'/entregar','POST',{'payment':'QR'})
         assert a.call('/pedidos/'+str(pending['id'])+'/entregar','POST',{'payment':'QR'})['saleId']==delivered['saleId']
+        # Cliente obligatorio: ningún movimiento se guarda sin selección explícita.
+        a.call('/ventas','POST',{**sale(),'customerId':None},400)
+        a.call('/ventas','POST',{**sale(),'customerId':999999},400)
+        default_quote=a.call('/ventas/cotizar','POST',{**sale(),'customerId':default_customer['id']});assert default_quote['discount']==0
+        gift['code']='CONSUMIDOR-QA-001';owner.call('/operaciones/cupones','POST',gift)
+        default_sale=a.call('/ventas','POST',{**sale('',gift['code']),'customerId':default_customer['id']});assert default_sale['customerId']==default_customer['id'] and default_sale['customer']=='Consumidor final'
+        dashboard=a.call('/operaciones/dashboard');assert all(x['customerId']!=default_customer['id'] for x in dashboard['customers'])
+        assert all(x['id']!=default_customer['id'] for x in a.call('/clientes'))
+        owner.call('/operaciones/cupones','POST',{**gift,'code':'DEFAULT-NO-CI','customerId':default_customer['id']},400)
+        owner.call('/clientes/'+str(default_customer['id'])+'/historial',status=400)
+        # Un pedido sin cliente exige seleccionarlo al entregar; mantiene su precio acordado.
+        no_customer={**order,'customerId':None,'requestId':str(uuid.uuid4()),'couponCode':None}
+        pending_guest=b.call('/pedidos','POST',no_customer)
+        b.call('/pedidos/'+str(pending_guest['id'])+'/entregar','POST',{'payment':'EFECTIVO'},400)
+        delivered_guest=b.call('/pedidos/'+str(pending_guest['id'])+'/entregar','POST',{'payment':'EFECTIVO','customerId':default_customer['id']});assert delivered_guest['customerId']==default_customer['id']
         # El cajero declara también el QR. Diferencias no justificadas se rechazan.
         close={'revision':ca['revision'],'countedCash':110,'countedQr':39,'notes':''}
         a.call('/operaciones/caja/'+str(ca['id'])+'/cerrar','POST',close,400)

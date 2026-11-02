@@ -60,7 +60,7 @@ public static class Exports
         foreach (var s in sales) {
             lines.Add($"Venta #{s.Id} | {s.Date:yyyy-MM-dd HH:mm} | {s.Payment} | Bs {Money(s.Total)}");
             lines.Add($"Sucursal: {s.Branch?.Name??"Sin registro (historica)"} | Cajero: {(string.IsNullOrWhiteSpace(s.CreatedBy)?"Sin registro (historica)":s.CreatedBy)} | Caja: {s.CashSessionId?.ToString()??"-"}");
-            lines.Add($"Cliente: {s.Customer?.Name ?? "Consumidor final"} | CI: {s.Customer?.Ci ?? "-"}");
+            lines.Add($"Cliente: {s.Customer?.Name ?? "Consumidor final"} | CI: {(s.Customer?.IsDefault==true?"No proporcionado":s.Customer?.Ci ?? "-")}");
             foreach (var l in s.Lines) lines.Add($"  {l.Quantity} x {l.Name} | P/U {Money(l.UnitPrice)} | Desc. {Money(l.Discount)} | Bs {Money(l.Total)}");
             lines.Add("");
         }

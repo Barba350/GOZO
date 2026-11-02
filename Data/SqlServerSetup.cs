@@ -39,6 +39,9 @@ public static class SqlServerSetup {
                 sales.Branches.AddRange(new Branch { Name="Sucursal 1" }, new Branch { Name="Sucursal 2" });
                 await sales.SaveChangesAsync();
             }
+            await sales.Database.ExecuteSqlRawAsync("IF COL_LENGTH(N'dbo.Customers',N'IsDefault') IS NULL ALTER TABLE [dbo].[Customers] ADD [IsDefault] bit NOT NULL DEFAULT 0;");
+            await sales.Database.ExecuteSqlRawAsync("IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE name=N'IX_Customers_IsDefault' AND object_id=OBJECT_ID(N'dbo.Customers')) CREATE UNIQUE INDEX [IX_Customers_IsDefault] ON [dbo].[Customers]([IsDefault]) WHERE [IsDefault]=1;");
+            await sales.Database.ExecuteSqlRawAsync("IF NOT EXISTS(SELECT 1 FROM [dbo].[Customers] WHERE [IsDefault]=1) INSERT INTO [dbo].[Customers]([Name],[Ci],[Contact],[IsDefault]) VALUES(N'Consumidor final',N'',N'',1);");
             await CatalogDefaults.EnsureCategories(sales);
         } finally {
             try { await sales.Database.ExecuteSqlRawAsync("EXEC sp_releaseapplock @Resource=N'GOZO:initialize', @LockOwner='Session';"); }
