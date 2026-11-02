@@ -39,3 +39,7 @@ El cajero debe elegir un cliente registrado o pulsar **Usar Consumidor final** a
 Las cotizaciones pueden calcular el carrito antes de elegir, pero guardar sin CustomerId o con un cliente inexistente se rechaza en servidor. Los pedidos pendientes sin cliente exigen seleccionarlo al entregar; se conserva su precio acordado. Históricos sin cliente permanecen intactos.
 
 Consumidor final no aparece como un comprador frecuente ni recibe promociones ligadas al CI; sí puede usar cupones generales válidos de un solo uso. No se ofrece como destinatario de cupones personales ni de promociones específicas. Se excluye del listado de clientes identificados y del historial individual, pero sus ventas sí se ven en los reportes del dueño.
+
+## Organización del menú
+
+La sección **Promociones** reúne dos apartados: promociones por unidad y cupones canjeables. Crear o desactivar un cupón conserva al usuario en ese apartado. Las pantallas de caja muestran solo apertura, resumen del turno y cierres. Los permisos de administración siguen siendo exclusivos del dueño.

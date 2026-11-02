@@ -25,7 +25,7 @@ else if (Model.Page == "pedidos")
 }
 else if (Model.Page == "promociones")
 {
-    <div class="card"><h2>Promociones</h2>
+    <div class="card"><h2>Promociones y cupones</h2><p>Administra aquí los descuentos y códigos canjeables del negocio.</p>
     @foreach (var promotion in Model.Promotions)
     {
         <p><strong>@promotion.Name</strong> · @promotion.Description</p>

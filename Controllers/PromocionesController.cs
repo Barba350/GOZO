@@ -4,5 +4,5 @@ namespace GOZO;
 [Authorize(Policy = "Dueno")]
 public class PromocionesController(IWorkspaceService workspace) : Controller
 {
-    public async Task<IActionResult> Index() => View(await workspace.Build("promociones", "Más motivos para volver.", "PROMOCIONES"));
+    public async Task<IActionResult> Index() => View(await workspace.Build("promociones", "Promociones y cupones.", "FIDELIZACIÓN"));
 }
