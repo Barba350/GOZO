@@ -36,7 +36,7 @@ public static class SqlServerSetup {
             }
             await sales.Database.ExecuteSqlRawAsync("IF EXISTS(SELECT 1 FROM sys.indexes WHERE name=N'IX_CashSessions_BranchId' AND object_id=OBJECT_ID(N'dbo.CashSessions') AND is_unique=1) DROP INDEX [IX_CashSessions_BranchId] ON [dbo].[CashSessions]; IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE name=N'IX_CashSessions_OpenedById' AND object_id=OBJECT_ID(N'dbo.CashSessions')) CREATE UNIQUE INDEX [IX_CashSessions_OpenedById] ON [dbo].[CashSessions] ([OpenedById]) WHERE [ClosedAt] IS NULL AND [OpenedById]>0;");
             if (!await sales.Branches.AnyAsync()) {
-                sales.Branches.AddRange(new Branch { Name="Sucursal 1" }, new Branch { Name="Sucursal 2" });
+                sales.Branches.AddRange(new Branch { Name="Sucursal Av. Sirai" }, new Branch { Name="Sucursal Av. 6 de Agosto" });
                 await sales.SaveChangesAsync();
             }
             await sales.Database.ExecuteSqlRawAsync("IF COL_LENGTH(N'dbo.Customers',N'IsDefault') IS NULL ALTER TABLE [dbo].[Customers] ADD [IsDefault] bit NOT NULL DEFAULT 0;");
